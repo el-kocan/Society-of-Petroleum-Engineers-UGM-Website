@@ -153,7 +153,7 @@ export async function checkBrowser({ origin, artifacts, env }) {
     console.log("PASS: Chrome external HTTP/HTTPS blocked before form testing; dead proxy and DNS deny rules active");
     await waitFor("document.fonts.status === 'loaded'", "Offline fonts not loaded");
     await screenshot("join-desktop.png");
-    assert(await evaluate("document.body.textContent.includes('Menunggu konfirmasi')"));
+    assert(await evaluate("document.body.textContent.includes('Staff Application Period')"));
     assert(await evaluate("[...document.querySelectorAll('a')].filter(a=>a.textContent.includes('Join SPE')).every(a=>a.getAttribute('href')==='/join')"));
     await writeFile(path.join(artifacts, "sample.pdf"), "%PDF-1.4\n% Synthetic QA fixture\n%%EOF");
     await writeFile(path.join(artifacts, "preference-1.pdf"), "%PDF-1.4\n% Synthetic first preference\n%%EOF");
@@ -163,20 +163,20 @@ export async function checkBrowser({ origin, artifacts, env }) {
     await writeFile(path.join(artifacts, "oversize.pdf"), Buffer.alloc(3 * 1024 * 1024 + 1));
     await writeFile(path.join(artifacts, "empty.pdf"), "");
     const viewportResults = [];
-    const summarySelector = (rank) => `button[aria-label="Ubah Pilihan ${rank === 1 ? "pertama" : "kedua"}"]`;
+    const summarySelector = (rank) => `button[aria-label="Edit ${rank === 1 ? "First" : "Second"} preference"]`;
     async function summary(rank) {
       return evaluate(`document.querySelector(${JSON.stringify(summarySelector(rank))}).closest('section').textContent`);
     }
     async function submitDisabled() {
-      return evaluate("[...document.querySelectorAll('button')].find(el=>el.textContent.startsWith('Submit simulasi')).disabled");
+      return evaluate("[...document.querySelectorAll('button')].find(el=>el.textContent.startsWith('Complete preview')).disabled");
     }
     async function noOverflow() {
       assert(await evaluate("document.documentElement.scrollWidth <= innerWidth"), "Horizontal overflow");
     }
     async function finishReview(rank) {
-      for (let step = rank; step < 3; step++) await click("Selanjutnya");
-      await click("Review isian");
-      await waitFor("document.getElementById('wizard-title').textContent.includes('Periksa')", "Review missing");
+      for (let step = rank; step < 3; step++) await click("Next");
+      await click("Review application");
+      await waitFor("document.getElementById('wizard-title').textContent.includes('Review')", "Review missing");
       await noOverflow();
     }
     for (const viewport of [
@@ -187,10 +187,10 @@ export async function checkBrowser({ origin, artifacts, env }) {
       await navigate("/join/apply");
       assert.equal(await evaluate("document.getElementById('recruit-catalog').value"), "draft");
       await fill("catalog", "demo");
-      await click("Selanjutnya");
+      await click("Next");
       assert(await evaluate("document.querySelector('[role=alert]') !== null && document.activeElement.id === 'recruit-fullName'"));
       for (const [key, value] of Object.entries({ fullName: "Synthetic Applicant", nim: "SYNTHETIC-001", birthPlace: "Kota Contoh", birthDate: "2099-01-01", ugmEmail: "not-an-email", phoneNumber: "abc", major: "Program Studi Contoh", batch: "2026" })) await fill(key, value);
-      await click("Selanjutnya");
+      await click("Next");
       assert.equal(await evaluate("document.querySelectorAll('[aria-invalid=true]').length"), 3);
       await fill("birthDate", "2007-01-02");
       await fill("ugmEmail", "synthetic@example.invalid");
@@ -207,46 +207,46 @@ export async function checkBrowser({ origin, artifacts, env }) {
         await fill(`subDivision${rank}`, `${prefix}-required`);
         await fill(`motivation${rank}`, `Alasan sintetis untuk pilihan ${rank}.`);
         assert.equal(await evaluate(`document.getElementById('recruit-assignment${rank}').getAttribute('aria-required')`), "true");
-        await click("Selanjutnya");
+        await click("Next");
         assert(await evaluate(`document.getElementById('recruit-assignment${rank}-error') !== null`));
-        for (const [filename, message] of [["wrong.txt", "PDF"], ["oversize.pdf", "3 MiB"], ["empty.pdf", "kosong"]]) {
+        for (const [filename, message] of [["wrong.txt", "PDF"], ["oversize.pdf", "3 MiB"], ["empty.pdf", "empty"]]) {
           await upload(`assignment${rank}`, filename);
           assert((await evaluate(`document.getElementById('recruit-assignment${rank}-error').textContent`)).includes(message));
         }
         await upload(`assignment${rank}`, `preference-${rank}.pdf`);
         if (rank === 1) {
-          await click("Sebelumnya");
+          await click("Back");
           assert.equal(await evaluate("document.getElementById('recruit-fullName').value"), "Synthetic Applicant");
-          await click("Selanjutnya");
+          await click("Next");
           assert(await evaluate("document.getElementById('recruit-subDivision1').value === 'a-required' && document.body.textContent.includes('preference-1.pdf')"));
         }
-        await click("Selanjutnya");
+        await click("Next");
       }
-      await click("Review isian");
+      await click("Review application");
       assert.equal(await evaluate("document.querySelectorAll('[aria-invalid=true]').length"), 5);
       for (const key of ["cv", "idCard", "commitment"]) await upload(key, "sample.pdf");
       for (const key of ["followProof", "storyProof"]) await upload(key, "sample.png");
-      await click("Hapus Curriculum Vitae");
-      await click("Review isian");
+      await click("Remove Curriculum Vitae");
+      await click("Review application");
       assert(await evaluate("document.getElementById('recruit-cv-error') !== null"));
       await upload("cv", "sample.pdf");
-      await click("Review isian");
+      await click("Review application");
       assert.equal(await submitDisabled(), false);
-      for (const rank of [1, 2]) assert((await summary(rank)).includes(`Wajib · preference-${rank}.pdf`));
+      for (const rank of [1, 2]) assert((await summary(rank)).includes(`Required · preference-${rank}.pdf`));
       await screenshot(`wizard-required-review-${viewport.name}.png`, summarySelector(1));
 
       // Same parent is allowed; the exact same sub-division is blocked.
-      await click('Ubah Pilihan kedua');
+      await click('Edit Second preference');
       await fill('division2', 'example-a');
       await fill('subDivision2', 'a-required');
       await upload('assignment2', 'preference-2.pdf');
-      await click('Selanjutnya');
-      assert((await evaluate("document.getElementById('recruit-subDivision2-error').textContent")).includes('dua sub-divisi yang berbeda'));
+      await click('Next');
+      assert((await evaluate("document.getElementById('recruit-subDivision2-error').textContent")).includes('Choose two different sub-divisions'));
       await fill('subDivision2', 'a-optional');
       assert(!(await evaluate('document.body.textContent')).includes('preference-2.pdf'));
       await finishReview(2);
       assert.equal(await submitDisabled(), false);
-      await click('Ubah Pilihan kedua');
+      await click('Edit Second preference');
       await fill('division2', 'example-b');
       await fill('subDivision2', 'b-required');
       await upload('assignment2', 'preference-2.pdf');
@@ -258,43 +258,43 @@ export async function checkBrowser({ origin, artifacts, env }) {
         const originalDivision = rank === 1 ? "example-a" : "example-b";
         const otherDivision = rank === 1 ? "example-b" : "example-a";
         const otherPrefix = rank === 1 ? "b" : "a";
-        const editLabel = `Ubah Pilihan ${rank === 1 ? "pertama" : "kedua"}`;
+        const editLabel = `Edit ${rank === 1 ? "First" : "Second"} preference`;
         await click(editLabel);
         await fill(`subDivision${rank}`, `${prefix}-optional`);
         assert.equal(await evaluate(`document.getElementById('recruit-assignment${rank}').getAttribute('aria-required')`), "false");
         assert(!(await evaluate("document.body.textContent")).includes(`preference-${rank}.pdf`), "Sub-division retained an irrelevant assignment");
         await upload(`assignment${rank}`, "wrong.txt");
-        await click("Selanjutnya");
+        await click("Next");
         assert(await evaluate(`document.getElementById('recruit-assignment${rank}-error') !== null`), "Optional invalid file accepted");
-        await click(`Hapus Assignment pilihan ${rank === 1 ? "pertama" : "kedua"}`);
+        await click(`Remove ${rank === 1 ? "First" : "Second"} preference assignment`);
         await finishReview(rank);
-        assert((await summary(rank)).includes("Tidak dilampirkan (opsional)"));
+        assert((await summary(rank)).includes("Not attached (optional)"));
         assert.equal(await submitDisabled(), false);
         await click(editLabel);
         await upload(`assignment${rank}`, `preference-${rank}.pdf`);
         await finishReview(rank);
-        assert((await summary(rank)).includes(`Opsional · preference-${rank}.pdf`));
+        assert((await summary(rank)).includes(`Optional · preference-${rank}.pdf`));
 
         await click(editLabel);
         await fill(`subDivision${rank}`, `${prefix}-none`);
         assert(await evaluate(`document.getElementById('recruit-assignment${rank}') === null`));
         assert(!(await evaluate("document.body.textContent")).includes(`preference-${rank}.pdf`));
-        assert((await evaluate("document.body.textContent")).includes("Tidak ada assignment"));
+        assert((await evaluate("document.body.textContent")).includes("No assignment is needed"));
         await noOverflow();
         await screenshot(`wizard-none-${rank}-${viewport.name}.png`, `#recruit-division${rank}`);
         await finishReview(rank);
-        assert((await summary(rank)).includes("Assignment tidak diperlukan"));
+        assert((await summary(rank)).includes("No assignment required"));
         assert.equal(await submitDisabled(), false);
 
         await click(editLabel);
         await fill(`subDivision${rank}`, `${prefix}-unconfirmed`);
         assert(await evaluate(`document.getElementById('recruit-assignment${rank}') === null`));
         await finishReview(rank);
-        assert((await summary(rank)).includes("Belum dikonfirmasi — submit simulasi diblokir"));
+        assert((await summary(rank)).includes("Unconfirmed — submission blocked"));
         assert.equal(await submitDisabled(), true);
         assert(await evaluate("document.getElementById('submission-blockers') !== null"));
-        await click("Submit simulasi");
-        assert(!(await evaluate("document.body.textContent")).includes("Simulasi berhasil diselesaikan."));
+        await click("Complete preview");
+        assert(!(await evaluate("document.body.textContent")).includes("Preview completed."));
         await screenshot(`wizard-unconfirmed-${rank}-${viewport.name}.png`, "#submission-blockers");
 
         await click(editLabel);
@@ -305,24 +305,24 @@ export async function checkBrowser({ origin, artifacts, env }) {
         assert(await evaluate(`document.getElementById('recruit-assignment${rank}') === null`));
         assert(!(await evaluate("document.body.textContent")).includes(`preference-${rank}.pdf`));
         await fill(`subDivision${rank}`, `${otherPrefix}-required`);
-        await click("Selanjutnya");
+        await click("Next");
         assert(await evaluate(`document.getElementById('recruit-assignment${rank}-error') !== null`), "Main-division change retained assignment state");
         await fill(`division${rank}`, originalDivision);
         await fill(`subDivision${rank}`, `${prefix}-required`);
         await upload(`assignment${rank}`, `preference-${rank}.pdf`);
         await finishReview(rank);
-        for (const current of [1, 2]) assert((await summary(current)).includes(`Wajib · preference-${current}.pdf`), "Changing one preference affected the other");
+        for (const current of [1, 2]) assert((await summary(current)).includes(`Required · preference-${current}.pdf`), "Changing one preference affected the other");
       }
 
       // Draft data remains separate and blocked; switching catalogue clears both
       // assignments but preserves personal details and supporting documents.
       await fill("catalog", "draft");
       assert.equal(await evaluate("document.getElementById('recruit-fullName').value"), "Synthetic Applicant");
-      await click("Selanjutnya");
+      await click("Next");
       await fill("division1", "internal-affairs");
       await fill("subDivision1", "human-capital");
       assert(await evaluate("document.getElementById('recruit-assignment1') === null"));
-      await click("Selanjutnya");
+      await click("Next");
       await fill("division2", "finance");
       await fill("subDivision2", "sponsorship");
       await finishReview(2);
@@ -332,25 +332,25 @@ export async function checkBrowser({ origin, artifacts, env }) {
       await screenshot(`wizard-draft-review-${viewport.name}.png`, summarySelector(1));
 
       await fill("catalog", "demo");
-      await click("Selanjutnya");
+      await click("Next");
       await fill("division1", "example-a");
       await fill("subDivision1", "a-none");
-      await click("Selanjutnya");
+      await click("Next");
       await fill("division2", "example-b");
       await fill("subDivision2", "b-optional");
       await finishReview(2);
-      assert((await summary(1)).includes("Assignment tidak diperlukan"));
-      assert((await summary(2)).includes("Tidak dilampirkan (opsional)"));
+      assert((await summary(1)).includes("No assignment required"));
+      assert((await summary(2)).includes("Not attached (optional)"));
       assert.equal(await submitDisabled(), false);
       await screenshot(`wizard-review-${viewport.name}.png`, summarySelector(1));
-      await click("Submit simulasi");
-      await waitFor("document.body.textContent.includes('Simulasi berhasil diselesaikan.')", "Simulation success missing");
-      assert(await evaluate("document.body.textContent.includes('Tidak ada pendaftaran resmi yang dikirim.')"));
+      await click("Complete preview");
+      await waitFor("document.body.textContent.includes('Preview completed.')", "Simulation success missing");
+      assert(await evaluate("document.body.textContent.includes('No real application was submitted.')"));
       assert(await evaluate("localStorage.length === 0 && sessionStorage.length === 0 && document.cookie === ''"), "Unexpected browser persistence");
       const { cookies } = await send("Network.getCookies", { urls: [origin] });
       assert.equal(cookies.length, 0, "Unexpected cookies, including HttpOnly");
       await screenshot(`wizard-success-${viewport.name}.png`);
-      await click("Mulai ulang simulasi");
+      await click("Restart preview");
       assert.equal(await evaluate("document.getElementById('recruit-fullName').value"), "");
       await fill("fullName", "Synthetic reload check");
       await send("Page.reload", { ignoreCache: true });
@@ -373,17 +373,17 @@ export async function checkBrowser({ origin, artifacts, env }) {
     await waitFor("!!document.getElementById('recruit-fullName')", "Live configuration did not load");
     assert(await evaluate("document.getElementById('recruit-catalog') === null"), "Live mode exposed draft selector");
     for (const [key,value] of Object.entries({fullName:"Synthetic Applicant",nim:"SYNTHETIC-001",birthPlace:"Synthetic",birthDate:"2005-02-01",ugmEmail:"synthetic@example.invalid",phoneNumber:"+620000000001",major:"Synthetic",batch:"2026"})) await fill(key,value);
-    await click("Selanjutnya");
+    await click("Next");
     await fill("division1","example-a"); await fill("subDivision1","a-none"); await fill("motivation1","Synthetic first preference");
-    await click("Selanjutnya");
+    await click("Next");
     await fill("division2","example-a"); await fill("subDivision2","a-optional"); await fill("motivation2","Synthetic second preference");
-    await click("Selanjutnya");
+    await click("Next");
     for (const slot of ["cv","idCard","commitment"]) await upload(slot,"sample.pdf");
     for (const slot of ["followProof","storyProof"]) await upload(slot,"sample.png");
-    await click("Review isian"); await click("Kirim pendaftaran");
+    await click("Review application"); await click("Submit application");
     await waitFor("document.body.textContent.includes('Synthetic temporary failure')", "Live failure not shown");
     assert((await evaluate("document.body.textContent")).includes("Synthetic Applicant"), "Failure cleared retry payload");
-    await click("Kirim pendaftaran");
+    await click("Submit application");
     await waitFor("document.body.textContent.includes('synthetic-receipt-001')", "Live receipt missing");
     assert.equal(livePosts,2);
     assert.equal(external.length,0);

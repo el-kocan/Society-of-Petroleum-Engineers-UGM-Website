@@ -111,7 +111,7 @@ for (const status of ["closed", "pending"]) {
   recruitmentConfig.status = status;
   assert(!renderToStaticMarkup(RecruitmentLanding()).includes('href="/join/apply"'));
   const React = require("react");
-  assert(renderToStaticMarkup(React.createElement(ApplicationWizard)).includes("Form simulasi belum tersedia"));
+  assert(renderToStaticMarkup(React.createElement(ApplicationWizard)).includes("Application preview unavailable"));
 }
 recruitmentConfig.status = "open";
 assert(renderToStaticMarkup(RecruitmentLanding()).includes('href="/join/apply"'));
