@@ -385,8 +385,7 @@ export async function singleSubmission<T>(key: string, operation: () => Promise<
   return getRateLimiter().singleSubmission(key, operation);
 }
 
-export async function boundedForm(request: Request) {
-  const max = 22 * 1024 * 1024;
+export async function boundedForm(request: Request, max = 22 * 1024 * 1024) {
   if (!request.headers.get("content-type")?.startsWith("multipart/form-data;") || !request.body)
     throw new SubmissionError(400, "Format pengiriman tidak valid.");
   if (Number(request.headers.get("content-length")) > max)

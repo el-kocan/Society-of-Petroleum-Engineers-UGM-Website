@@ -48,6 +48,8 @@ export function PreferenceStep({ rank, preview = false, period, values, files, e
           <div role="status" aria-live="polite" className="rounded-2xl bg-[#f0eefb] p-4 text-[15px] leading-relaxed">
             <p className="font-semibold text-ink-deep">Assignment · First preference: {assignment.label}</p>
             <p className="mt-2 text-ink-soft">{assignment.message}</p>
+            {period.contentState !== "demo" && <p className="mt-2 text-ink-soft">For the official catalogue, all 12 sub-divisions other than Relations &amp; Partnership require one first-preference assignment PDF (max 3 MiB). No assignment is accepted for Relations &amp; Partnership.</p>}
+            {period.contentState !== "demo" && assignment.upload && <p className="mt-2 text-ink-soft">Include any applicable video, portfolio or external submission links inside the PDF. Filename recommendations are advisory.</p>}
           </div>
           {assignment.upload && (
             <FileField

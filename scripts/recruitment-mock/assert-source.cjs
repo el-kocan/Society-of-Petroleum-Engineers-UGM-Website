@@ -137,6 +137,50 @@ for (const status of ["closed", "pending"]) {
 }
 recruitmentConfig.status = "open";
 assert(renderToStaticMarkup(RecruitmentLanding()).includes('href="/join/apply"'));
+
+// Presentation-only checks, including the live API's raw slot-name filename.
+const React = require("react");
+const { FileField } = require(path.join(root, "form-fields.tsx"));
+const { PreferenceStep } = require(path.join(root, "preference-step.tsx"));
+const { documentLabel, documentUploadHint } = require(path.join(root, "presentation.ts"));
+const publicInformation = require(path.join(root, "public-information.ts"));
+assert.equal(publicInformation.OFFICIAL_GUIDEBOOK_URL, null);
+assert.equal(publicInformation.PUBLIC_RECRUITMENT_SCHEDULE.deadline, "November 13, 2026, 23:59 WIB");
+for (const slot of documentSlots) {
+  const rule = { formats: [slot.format.toLowerCase()], maxBytes: MAX_FILE_BYTES, filename: slot.key };
+  const upload = documentUploadHint(rule, slot.filename);
+  assert.equal(rule.filename, slot.key, "Do not mutate the API configuration");
+  assert.equal(upload.formats, rule.formats);
+  assert.equal(upload.maxBytes, rule.maxBytes);
+  const markup = renderToStaticMarkup(React.createElement(FileField, {
+    slot: { key: slot.key, label: documentLabel(slot.key) }, upload, onChange() {},
+  }));
+  assert(markup.includes(documentLabel(slot.key)));
+  assert(markup.includes(`Suggested filename (advisory): ${slot.filename}`));
+  assert(markup.includes("Max 3 MiB"));
+}
+assert.equal(documentUploadHint({ formats: ["png"], maxBytes: 1234, filename: "cv" }, "Name_CV.pdf").maxBytes, 1234, "Display must not override server limits");
+const landingMarkup = renderToStaticMarkup(RecruitmentLanding());
+const wizardMarkup = renderToStaticMarkup(React.createElement(ApplicationWizard));
+for (const markup of [landingMarkup, wizardMarkup]) {
+  assert(markup.includes(publicInformation.PUBLIC_RECRUITMENT_SCHEDULE.deadline));
+  assert(markup.includes("Official guidebook publication pending."));
+  assert(!markup.includes("November 14, 2026, 00:00"));
+  assert(!markup.includes('href="null"'));
+}
+assert(landingMarkup.includes('aria-describedby="guidebook-status"'));
+const props = { preview: true, period: draft, values: draftValues, files, errors: {}, onDivision() {}, onSubDivision() {}, onMotivation() {}, onFile() {} };
+const firstMarkup = renderToStaticMarkup(React.createElement(PreferenceStep, { ...props, rank: 1 }));
+assert(firstMarkup.includes("max 3 MiB"));
+assert(firstMarkup.includes("external submission links inside the PDF"));
+assert(firstMarkup.includes("Name_FirstDivision.pdf"));
+const secondMarkup = renderToStaticMarkup(React.createElement(PreferenceStep, { ...props, rank: 2 }));
+assert(secondMarkup.includes("No assignment is required or accepted for your second preference"));
+assert(!secondMarkup.includes('type="file"'));
+const relationsMarkup = renderToStaticMarkup(React.createElement(PreferenceStep, { ...props, values: draftRelValues, files: draftWithoutA1, rank: 1 }));
+assert(!relationsMarkup.includes('type="file"'));
+console.log("PASS: readable document hints retain server limits; shared public deadline; pending guidebook; first/second preference guidance");
+
 for (const name of fs.readdirSync(root)) {
   if (!/\.tsx?$/.test(name)) continue;
   const source = fs.readFileSync(path.join(root, name), "utf8");

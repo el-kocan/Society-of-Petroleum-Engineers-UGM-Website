@@ -1,13 +1,8 @@
 import Image from "next/image";
 
 import { ApplicationEntry, MockNotice, RecruitmentFrame, secondaryButton } from "./components";
-
-/**
- * Official Recruitment Guidebook URL.
- * Set to the verified Google Drive PDF URL once officially published by the committee.
- * Leave as null until the official link is provided.
- */
-export const OFFICIAL_GUIDEBOOK_URL: string | null = null;
+import { OFFICIAL_GUIDEBOOK_URL, PUBLIC_RECRUITMENT_SCHEDULE } from "./public-information";
+export { OFFICIAL_GUIDEBOOK_URL } from "./public-information";
 
 interface TimelineStage {
   date: string;
@@ -16,7 +11,7 @@ interface TimelineStage {
 
 const RECRUITMENT_TIMELINE: readonly TimelineStage[] = [
   {
-    date: "Nov 5 – 12, 2026",
+    date: PUBLIC_RECRUITMENT_SCHEDULE.applicationDates,
     title: "Staff Application Period",
   },
   {
@@ -84,8 +79,8 @@ const SUPPORTING_DOCUMENTS = [
   { name: "Curriculum Vitae", format: "PDF", filename: "Name_CV.pdf" },
   { name: "Student ID Card (KTM / eKTM)", format: "PDF", filename: "Name_IDCard.pdf" },
   { name: "Commitment Letter", format: "PDF", filename: "Name_LetterCommitment.pdf" },
-  { name: "Proof of Following SPE Social Media", format: "PNG", filename: "Name_ProofFollowSPE.png" },
-  { name: "Instagram Story Sharing Proof", format: "PNG", filename: "Name_ProofSG.png" },
+  { name: "Instagram Follow Proof", format: "PNG", filename: "Name_ProofFollowSPE.png" },
+  { name: "Instagram Story Proof", format: "PNG", filename: "Name_ProofSG.png" },
 ] as const;
 
 const sectionStyle = "scroll-mt-28 border-t border-[#dddde8] py-5 sm:py-10";
@@ -164,6 +159,7 @@ export function RecruitmentLanding({ backend = false }: { backend?: boolean } = 
 
       <section id="timeline" aria-labelledby="timeline-title" className={sectionStyle}>
         <h2 id="timeline-title" className={headingStyle}>Recruitment Timeline</h2>
+        <p className="mt-3 text-[15px] text-ink-soft">Application deadline: {PUBLIC_RECRUITMENT_SCHEDULE.deadline}.</p>
         <ol className="mt-5 grid gap-x-12 sm:grid-flow-col sm:grid-cols-2 sm:grid-rows-3">
           {RECRUITMENT_TIMELINE.map((stage, index) => (
             <li key={stage.title} className="relative grid grid-cols-[2rem_1fr] gap-3 py-2.5 before:absolute before:top-10 before:bottom-0 before:left-3 before:border-l before:border-[#d4cdeb] last:before:hidden sm:py-3.5 sm:before:top-11 sm:[&:nth-child(3)]:before:hidden">
@@ -206,10 +202,13 @@ export function RecruitmentLanding({ backend = false }: { backend?: boolean } = 
           <div>
             <h2 id="documents-title" className={headingStyle}>Before You Apply</h2>
             <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
-              Prepare these five supporting documents. Filenames are guidance only.
+              Prepare these five supporting documents, max 3 MiB each. Filenames are guidance only.
             </p>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
-              Division assignments are separate from these documents and depend on your selected sub-divisions. Full instructions are in the official guidebook.
+              Your first preference requires an assignment PDF (max 3 MiB), except Relations &amp; Partnership. No assignment is accepted for your second preference. Suggested filename (advisory): Name_FirstDivision.pdf. Include any applicable video, portfolio or external submission links inside the PDF.
+            </p>
+            <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
+              {OFFICIAL_GUIDEBOOK_URL ? "Read the official guidebook for the assignment briefs." : "Assignment briefs will be available in the official guidebook. Publication is pending."}
             </p>
           </div>
           <ul className="grid min-w-0 gap-2.5 sm:grid-cols-2 sm:gap-3">

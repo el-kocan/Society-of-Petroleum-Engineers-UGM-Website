@@ -35,7 +35,7 @@ export function FileField({ slot, upload, file, error, required = true, onChange
 }) {
   const id = `recruit-${slot.key}`;
   return (
-    <Field id={id} label={slot.label} required={required} error={error} hint={`${upload.formats.map((format) => format.toUpperCase()).join(" / ")} · Max ${upload.maxBytes / (1024 * 1024)} MiB. Suggested filename: ${upload.filename}.`}>
+    <Field id={id} label={slot.label} required={required} error={error} hint={`${upload.formats.map((format) => format.toUpperCase()).join(" / ")} · Max ${upload.maxBytes / (1024 * 1024)} MiB. Suggested filename (advisory): ${upload.filename}.`}>
       <div className={`rounded-2xl border bg-[#faf9fe] p-4 ${error ? "border-red-500" : "border-[#dcddea]"}`}>
         <input
           id={id}

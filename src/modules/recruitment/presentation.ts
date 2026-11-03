@@ -1,5 +1,6 @@
 import { assignmentView } from "./assignment";
 import type { AssignmentRule } from "./recruitment-types";
+import type { UploadSpecification } from "./recruitment-types";
 
 /** Frontend copy only. Configuration values and backend text stay unchanged. */
 export const steps = ["Personal information", "First preference", "Second preference", "Supporting documents"] as const;
@@ -13,12 +14,17 @@ const documentLabels: Record<string, string> = {
   cv: "Curriculum Vitae",
   idCard: "Student ID Card (KTM / eKTM)",
   commitment: "Commitment Letter",
-  followProof: "Proof of Following SPE Social Media",
-  storyProof: "Instagram Story Sharing Proof",
+  followProof: "Instagram Follow Proof",
+  storyProof: "Instagram Story Proof",
 };
 
 export function documentLabel(key: string) {
   return documentLabels[key] ?? key;
+}
+
+/** Advisory filename only; retain every server-provided upload restriction. */
+export function documentUploadHint(upload: UploadSpecification, suggestedFilename: string): UploadSpecification {
+  return { ...upload, filename: suggestedFilename };
 }
 
 const previewCopy: Record<string, string> = {

@@ -8,7 +8,8 @@ import { documentSlots, MAX_FILE_BYTES, recruitmentCatalogs, recruitmentConfig, 
 import { resolvePreference, validateAssignment } from "./assignment";
 import { Field, FileField } from "./form-fields";
 import { PreferenceStep } from "./preference-step";
-import { assignmentPresentation, clientMessage, documentLabel, preferenceLabel, PREVIEW_NOTICE, previewText, steps } from "./presentation";
+import { assignmentPresentation, clientMessage, documentLabel, documentUploadHint, preferenceLabel, PREVIEW_NOTICE, previewText, steps } from "./presentation";
+import { OFFICIAL_GUIDEBOOK_URL, PUBLIC_RECRUITMENT_SCHEDULE } from "./public-information";
 import { preferenceFields, type PreferenceRank, type RecruitmentPeriod } from "./recruitment-types";
 import { emptyValues, validateFile, validateStep, validateSubmission, type ApplicationFiles, type ApplicationValues, type DocumentKey, type Errors } from "./validation";
 
@@ -144,15 +145,92 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
     for (let index = 0; index < 4; index++) if (!check(index, true)) return;
     setSending(true); setServerError("");
     try {
-      const body = new FormData();
-      for (const [key, value] of Object.entries(values)) body.append(key, value);
-      for (const [key, file] of Object.entries(files)) if (file && key !== "assignment2") body.append(key, file);
-      const response = await fetch("/api/recruitment", { method: "POST", credentials: "same-origin", headers: { "x-recruitment-session": session.current }, body });
-      const data = await response.json();
-      if (!response.ok) { setErrors(data.fields ?? {}); throw new Error(data.error); }
-      setReceipt(data.applicationId); setValues({ ...emptyValues }); setFiles({}); setErrors({}); setPhase("success");
-    } catch (error) { setServerError(error instanceof Error ? error.message : "Submission has not been confirmed. Retry with the same information and files."); }
-    finally { setSending(false); }
+      // 1. Initialize submission and validate metadata (JSON payload < 5 KB)
+      const initRes = await fetch("/api/recruitment?action=init", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "x-recruitment-session": session.current,
+        },
+        body: JSON.stringify({ values }),
+      });
+      const initData = await initRes.json();
+      if (!initRes.ok) {
+        setErrors(initData.fields ?? {});
+        throw new Error(initData.error || "Gagal memproses pendaftaran.");
+      }
+      if (initData.status === "already_submitted") {
+        setReceipt(initData.applicationId);
+        setValues({ ...emptyValues });
+        setFiles({});
+        setErrors({});
+        setPhase("success");
+        return;
+      }
+
+      // 2. Upload each required file separately (within Vercel 4.5 MB request limit)
+      const targetFiles: Array<{ slot: DocumentKey; file: File }> = [];
+      for (const [key, file] of Object.entries(files)) {
+        if (file && key !== "assignment2") {
+          targetFiles.push({ slot: key as DocumentKey, file });
+        }
+      }
+
+      const uploadedDocs: Array<{ slot: string; fileId: string; fileUrl: string }> = [];
+      for (const { slot, file } of targetFiles) {
+        const fileForm = new FormData();
+        fileForm.append("slot", slot);
+        fileForm.append("file", file);
+        fileForm.append("nim", values.nim);
+        fileForm.append("fullName", values.fullName);
+
+        const uploadRes = await fetch("/api/recruitment?action=upload", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "x-recruitment-session": session.current },
+          body: fileForm,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          if (uploadData.fields) setErrors(uploadData.fields);
+          throw new Error(uploadData.error || `Gagal mengunggah dokumen ${slot}.`);
+        }
+        if (uploadData.fileId) {
+          uploadedDocs.push({
+            slot: uploadData.slot || slot,
+            fileId: uploadData.fileId,
+            fileUrl: uploadData.fileUrl || "",
+          });
+        }
+      }
+
+      // 3. Finalize only after all files succeed
+      const finalRes = await fetch("/api/recruitment?action=finalize", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "x-recruitment-session": session.current,
+        },
+        body: JSON.stringify({ values, documents: uploadedDocs }),
+      });
+      const finalData = await finalRes.json();
+      if (!finalRes.ok) {
+        if (finalData.fields) setErrors(finalData.fields);
+        throw new Error(finalData.error || "Gagal menyelesaikan pendaftaran.");
+      }
+
+      setReceipt(finalData.applicationId);
+      setValues({ ...emptyValues });
+      setFiles({});
+      setErrors({});
+      setPhase("success");
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : "Submission has not been confirmed. Retry with the same information and files.");
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleEnter(event: KeyboardEvent<HTMLDivElement>) {
@@ -199,7 +277,8 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
         <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight">Application<br className="hidden lg:block" /> {backend ? "form." : "preview."}</h2>
         <ol className="mt-4 grid grid-cols-4 gap-2 lg:mt-6 lg:grid-cols-1 lg:gap-3">{steps.map((label, index) => <li key={label} aria-current={step === index ? "step" : undefined} className={`flex items-center justify-center gap-3 rounded-xl px-2 py-3 text-[15px] lg:justify-start lg:px-3 ${step === index ? "bg-[#eeebff] font-semibold text-[#5947b5] ring-1 ring-[#c9bff0]" : "text-ink-soft"}`}><span aria-hidden="true" className={`grid size-8 shrink-0 place-items-center rounded-full ${step >= index ? "bg-iris text-white" : "border border-[#dcddea] bg-white"}`}>{step > index ? "✓" : index + 1}</span><span className="sr-only lg:not-sr-only">{label}{step > index && <span className="sr-only"> — completed</span>}</span></li>)}</ol>
         <p className="mt-5 hidden text-sm leading-relaxed text-ink-soft lg:block">Choose two different sub-divisions, including within the same main division. Back keeps your entries and files; reloading clears them.</p>
-        <p className="mt-3 hidden text-sm text-ink-soft lg:block">Official guidebook publication pending.</p>
+        <p className="mt-3 text-sm text-ink-soft">Official application deadline: {PUBLIC_RECRUITMENT_SCHEDULE.deadline}.</p>
+        <p className="mt-3 text-sm text-ink-soft">{OFFICIAL_GUIDEBOOK_URL ? <a className="underline" href={OFFICIAL_GUIDEBOOK_URL} target="_blank" rel="noopener noreferrer">Read the official guidebook</a> : "Official guidebook publication pending."}</p>
       </aside>
       <section className="min-w-0 rounded-3xl border border-[#e4e5ef] bg-white p-5 sm:p-8">
         <p className="text-xs font-semibold tracking-[0.12em] text-iris uppercase">Step {step + 1} of 4{phase === "review" ? " · Review" : ""}</p>
@@ -232,7 +311,7 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
               return <Field key={field.key} id={id} label={field.label} error={errors[field.key]} hint={hint}><input id={id} type={field.type} value={values[field.key]} onChange={(event) => change(field.key, event.target.value)} placeholder={field.placeholder} autoComplete="off" maxLength={field.key === "ugmEmail" ? 254 : field.key === "phoneNumber" ? 25 : 150} required aria-invalid={Boolean(errors[field.key])} aria-describedby={[hint ? `${id}-hint` : "", errors[field.key] ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined} className={inputStyle} /></Field>;
             })}<Field id="recruit-batch" label="Cohort" error={errors.batch}><select id="recruit-batch" value={values.batch} onChange={(event) => change("batch", event.target.value)} required aria-invalid={Boolean(errors.batch)} aria-describedby={errors.batch ? "recruit-batch-error" : undefined} className={inputStyle}><option value="">Choose your cohort</option>{period.batches.map((batch) => <option key={batch} value={batch}>{batch}</option>)}</select></Field></div>}
             {(step === 1 || step === 2) && <PreferenceStep rank={step} preview={!backend} period={period} values={values} files={files} errors={errors} onDivision={(value) => changePreference(step, "division", value)} onSubDivision={(value) => changePreference(step, "subDivision", value)} onMotivation={(value) => change(preferenceFields[step].motivation, value)} onFile={(file) => changeFile(preferenceFields[step].assignment, file)} />}
-            {step === 3 && <div className="space-y-6">{documentSlots.map((slot) => <FileField key={slot.key} slot={{ ...slot, label: documentLabel(slot.key) }} required={period.documents?.[slot.key]?.required ?? true} upload={period.documents?.[slot.key] ?? { formats: [slot.format === "PDF" ? "pdf" : "png"], maxBytes: MAX_FILE_BYTES, filename: slot.filename }} file={files[slot.key]} error={errors[slot.key]} onChange={(file) => changeFile(slot.key, file)} />)}</div>}
+            {step === 3 && <div className="space-y-6">{documentSlots.map((slot) => <FileField key={slot.key} slot={{ ...slot, label: documentLabel(slot.key) }} required={period.documents?.[slot.key]?.required ?? true} upload={documentUploadHint(period.documents?.[slot.key] ?? { formats: [slot.format === "PDF" ? "pdf" : "png"], maxBytes: MAX_FILE_BYTES, filename: slot.filename }, slot.filename)} file={files[slot.key]} error={errors[slot.key]} onChange={(file) => changeFile(slot.key, file)} />)}</div>}
           </fieldset>
           <div className="mt-8 flex flex-col-reverse justify-between gap-3 border-t border-[#e7e8f0] pt-6 sm:flex-row">{step > 0 ? <button type="button" className={secondaryButton} onClick={() => edit(step - 1)}>Back</button> : <Link href="/join" className={secondaryButton}>Back</Link>}<button type="button" className={primaryButton} onClick={next}>{step === 3 ? "Review application" : "Next"}<span aria-hidden="true">→</span></button></div>
           <p className="mt-4 text-center text-sm text-ink-soft">{backend ? "Documents are stored privately for the committee." : PREVIEW_NOTICE}</p>
