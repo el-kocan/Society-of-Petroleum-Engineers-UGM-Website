@@ -115,19 +115,29 @@ export function loadGoogleCatalog(): Catalog {
   for (const div of draftPeriod.divisions) {
     for (const sub of div.subDivisions) {
       const assignment = sub.assignment;
-      const isNone = assignment.status === "none";
-      const hasUpload = "upload" in assignment && assignment.upload !== undefined;
-
-      options.push({
-        main_code: div.id,
-        main_label: div.label,
-        sub_code: sub.id,
-        sub_label: sub.label,
-        assignment_state: assignment.status,
-        instructions: isNone ? assignment.message : assignment.instructions,
-        formats: hasUpload ? (assignment.upload!.formats as UploadFormat[]) : null,
-        max_bytes: hasUpload ? assignment.upload!.maxBytes : null,
-      });
+      if ("upload" in assignment) {
+        options.push({
+          main_code: div.id,
+          main_label: div.label,
+          sub_code: sub.id,
+          sub_label: sub.label,
+          assignment_state: assignment.status,
+          instructions: assignment.instructions,
+          formats: [...assignment.upload.formats],
+          max_bytes: assignment.upload.maxBytes,
+        });
+      } else {
+        options.push({
+          main_code: div.id,
+          main_label: div.label,
+          sub_code: sub.id,
+          sub_label: sub.label,
+          assignment_state: assignment.status,
+          instructions: assignment.message,
+          formats: null,
+          max_bytes: null,
+        });
+      }
     }
   }
 
