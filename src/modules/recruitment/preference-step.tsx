@@ -4,7 +4,7 @@ import { resolvePreference } from "./assignment";
 import { inputStyle } from "./components";
 import { Field, FileField } from "./form-fields";
 import { preferenceFields, type PreferenceRank, type RecruitmentPeriod } from "./recruitment-types";
-import { assignmentPresentation, preferenceLabel, previewText } from "./presentation";
+import { assignmentPresentation, previewText } from "./presentation";
 import type { ApplicationFiles, ApplicationValues, Errors } from "./validation";
 
 export function PreferenceStep({ rank, preview = false, period, values, files, errors, onDivision, onSubDivision, onMotivation, onFile }: {
@@ -43,20 +43,31 @@ export function PreferenceStep({ rank, preview = false, period, values, files, e
       <Field id={motivationId} label="Why this sub-division?" error={errors[fields.motivation]} hint={`${values[fields.motivation].length.toLocaleString("en-US")} / 3,000 characters.`}>
         <textarea id={motivationId} value={values[fields.motivation]} onChange={(event) => onMotivation(event.target.value)} required maxLength={3000} rows={5} placeholder="Explain why this sub-division interests you." aria-invalid={Boolean(errors[fields.motivation])} aria-describedby={`${motivationId}-hint${errors[fields.motivation] ? ` ${motivationId}-error` : ""}`} className={`${inputStyle} resize-y`} />
       </Field>
-      <div role="status" aria-live="polite" className="rounded-2xl bg-[#f0eefb] p-4 text-[15px] leading-relaxed">
-        <p className="font-semibold text-ink-deep">Assignment · {preferenceLabel(rank)} preference: {assignment.label}</p>
-        <p className="mt-2 text-ink-soft">{assignment.message}</p>
-      </div>
-      {assignment.upload && (
-        <FileField
-          key={`${period.id}-${division?.id}-${subDivision?.id}`}
-          slot={{ key: fields.assignment, label: `${rank === 1 ? "First" : "Second"} preference assignment` }}
-          upload={assignment.upload}
-          required={assignment.required}
-          file={files[fields.assignment]}
-          error={errors[fields.assignment]}
-          onChange={onFile}
-        />
+      {rank === 1 ? (
+        <>
+          <div role="status" aria-live="polite" className="rounded-2xl bg-[#f0eefb] p-4 text-[15px] leading-relaxed">
+            <p className="font-semibold text-ink-deep">Assignment · First preference: {assignment.label}</p>
+            <p className="mt-2 text-ink-soft">{assignment.message}</p>
+          </div>
+          {assignment.upload && (
+            <FileField
+              key={`${period.id}-${division?.id}-${subDivision?.id}`}
+              slot={{ key: fields.assignment, label: "First preference assignment" }}
+              upload={assignment.upload}
+              required={assignment.required}
+              file={files[fields.assignment]}
+              error={errors[fields.assignment]}
+              onChange={onFile}
+            />
+          )}
+        </>
+      ) : (
+        <div role="status" aria-live="polite" className="rounded-2xl bg-[#f0eefb] p-4 text-[15px] leading-relaxed">
+          <p className="font-semibold text-ink-deep">Assignment · Second preference: Not required</p>
+          <p className="mt-2 text-ink-soft">
+            Assignments only apply to your first preference choice. No assignment is required or accepted for your second preference.
+          </p>
+        </div>
       )}
     </div>
   );

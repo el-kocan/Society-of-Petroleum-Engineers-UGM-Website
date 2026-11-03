@@ -20,7 +20,7 @@ export function publicPeriod(catalog: Catalog): RecruitmentPeriod {
     let division = divisions.find(d => d.id === o.main_code);
     if (!division) { division = { id: o.main_code, label: o.main_label, subDivisions: [] }; divisions.push(division); }
     const assignment = o.assignment_state === "required" || o.assignment_state === "optional"
-      ? { status: o.assignment_state, instructions: o.instructions, upload: { formats: o.formats as [UploadFormat, ...UploadFormat[]], maxBytes: o.max_bytes!, filename: "assignment" } }
+      ? { status: o.assignment_state, instructions: o.instructions, upload: { formats: o.formats as [UploadFormat, ...UploadFormat[]], maxBytes: o.max_bytes!, filename: "Name_FirstDivision.pdf" } }
       : { status: o.assignment_state, message: o.instructions };
     (division.subDivisions as Array<typeof division.subDivisions[number]>).push({ id: o.sub_code, label: o.sub_label, assignment });
   }

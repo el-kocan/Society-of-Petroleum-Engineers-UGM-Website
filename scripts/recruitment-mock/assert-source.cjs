@@ -31,7 +31,6 @@ const values = {
 const files = Object.fromEntries(documentSlots.map((slot) => [slot.key, new File(["synthetic"], slot.format === "PDF" ? "sample.pdf" : "sample.png", { type: slot.format === "PDF" ? "application/pdf" : "image/png" })]));
 const pdf = new File(["synthetic"], "sample.pdf", { type: "application/pdf" });
 files.assignment1 = pdf;
-files.assignment2 = pdf;
 for (let step = 0; step < 4; step++) assert.deepEqual(validateStep(step, values, files, demo), {});
 assert.deepEqual(validateSubmission(values, files, demo), {});
 const duplicatePreference = { ...values, division2: values.division1, subDivision2: values.subDivision1 };
@@ -62,7 +61,12 @@ assert.equal(demo.contentState, "demo");
 assert.equal(Object.keys(approvedRecruitmentPeriods).length, 0);
 assert.equal(draft.divisions.length, 6);
 assert.equal(draft.divisions.flatMap((item) => item.subDivisions).length, 13);
-assert(draft.divisions.every((item) => item.subDivisions.every((child) => child.assignment.status === "unconfirmed")));
+const relPart = draft.divisions.find((d) => d.id === "external-affairs").subDivisions.find((s) => s.id === "relations-partnership");
+assert.equal(relPart.assignment.status, "none");
+const webDev = draft.divisions.find((d) => d.id === "media-creative").subDivisions.find((s) => s.id === "website-development");
+assert.equal(webDev.assignment.status, "required");
+const otherSubs = draft.divisions.flatMap((d) => d.subDivisions).filter((s) => s.id !== "relations-partnership");
+assert(otherSubs.every((s) => s.assignment.status === "required"));
 
 for (const rank of [1, 2]) {
   const fields = preferenceFields[rank];
@@ -77,23 +81,41 @@ for (const rank of [1, 2]) {
     assert.equal(Boolean(view.upload), status === "required" || status === "optional");
     assert.equal(view.required, status === "required");
     const stepErrors = validateStep(rank, selected, withoutFile, demo);
-    assert.equal(Boolean(stepErrors[fields.assignment]), status === "required");
-    const finalErrors = validateSubmission(selected, withoutFile, demo);
-    assert.equal(Boolean(finalErrors[fields.subDivision]), status === "unconfirmed");
-    assert.equal(Boolean(finalErrors[fields.assignment]), status === "required");
-    if (status === "optional") {
-      assert(validateStep(rank, selected, { ...files, [fields.assignment]: new File(["x"], "wrong.png", { type: "image/png" }) }, demo)[fields.assignment]);
-      assert.deepEqual(validateSubmission(selected, withoutFile, demo), {});
+    if (rank === 1) {
+      assert.equal(Boolean(stepErrors[fields.assignment]), status === "required");
+      const finalErrors = validateSubmission(selected, withoutFile, demo);
+      assert.equal(Boolean(finalErrors[fields.subDivision]), status === "unconfirmed");
+      assert.equal(Boolean(finalErrors[fields.assignment]), status === "required");
+      if (status === "optional") {
+        assert(validateStep(rank, selected, { ...files, [fields.assignment]: new File(["x"], "wrong.png", { type: "image/png" }) }, demo)[fields.assignment]);
+        assert.deepEqual(validateSubmission(selected, withoutFile, demo), {});
+      }
+    } else {
+      // Rank 2 never requires or validates an assignment
+      assert.equal(stepErrors[fields.assignment], undefined);
     }
     if (status === "none") assert(view.summary.includes("tidak diperlukan"));
   }
   assert(validateStep(rank, { ...values, [fields.subDivision]: `${rank === 1 ? "b" : "a"}-required` }, files, demo)[fields.subDivision], "Cross-parent sub-division must fail");
 }
 const draftValues = { ...values, division1: "internal-affairs", subDivision1: "human-capital", division2: "finance", subDivision2: "sponsorship" };
-assert.deepEqual(validateStep(1, draftValues, {}, draft), {});
-assert.deepEqual(validateStep(2, draftValues, {}, draft), {});
-const draftErrors = validateSubmission(draftValues, files, draft);
-assert(draftErrors.subDivision1 && draftErrors.subDivision2);
+assert.deepEqual(validateStep(1, draftValues, files, draft), {});
+assert.deepEqual(validateStep(2, draftValues, files, draft), {});
+assert.deepEqual(validateSubmission(draftValues, files, draft), {});
+
+const draftWithoutA1 = { ...files };
+delete draftWithoutA1.assignment1;
+assert(validateStep(1, draftValues, draftWithoutA1, draft).assignment1);
+assert(validateSubmission(draftValues, draftWithoutA1, draft).assignment1);
+
+const draftRelValues = { ...values, division1: "external-affairs", subDivision1: "relations-partnership", division2: "internal-affairs", subDivision2: "human-capital" };
+assert.deepEqual(validateStep(1, draftRelValues, draftWithoutA1, draft), {});
+assert.deepEqual(validateSubmission(draftRelValues, draftWithoutA1, draft), {});
+
+const draftWebValues = { ...values, division1: "media-creative", subDivision1: "website-development", division2: "external-affairs", subDivision2: "relations-partnership" };
+assert(validateStep(1, draftWebValues, draftWithoutA1, draft).assignment1);
+assert.deepEqual(validateStep(1, draftWebValues, files, draft), {});
+
 assert(validateAssignment(undefined, undefined, true));
 
 // Format support is driven by the rule, never enabled as an official policy.

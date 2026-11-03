@@ -35,6 +35,7 @@ export function inspectDocument(bytes: Buffer, name: string, mime: string): "pdf
 export async function validatePayload(form: FormData, catalog: Catalog): Promise<Payload> {
   const allowed = new Set([...Object.keys(emptyValues), ...documentSlots.map(s => s.key), "assignment1", "assignment2"]);
   for (const key of form.keys()) if (!allowed.has(key) || form.getAll(key).length !== 1) throw new SubmissionError(400, "Field pengiriman tidak valid atau berulang.");
+  if (form.has("assignment2")) throw new SubmissionError(422, "Assignment tidak diperlukan untuk pilihan kedua.");
   const values = { ...emptyValues };
   for (const key of Object.keys(values) as Array<keyof ApplicationValues>) {
     const value = form.get(key); if (typeof value !== "string" || value.length > 3000) throw new SubmissionError(422, "Data formulir tidak lengkap.");
@@ -48,13 +49,16 @@ export async function validatePayload(form: FormData, catalog: Catalog): Promise
   const errors = Object.assign({}, ...[0,1,2].map(step => validateStep(step, values, files, period, true)));
   if (Object.keys(errors).length) throw new SubmissionError(422, "Periksa kembali isian Anda.", errors);
   const requirements = catalog.requirements.map(r => ({ slot: r.slot, formats: r.formats, max: r.max_bytes, required: r.required }));
-  for (const rank of [1,2] as const) {
-    const o = catalog.options.find(o => o.main_code === values[`division${rank}`] && o.sub_code === values[`subDivision${rank}`]);
-    if (!o || o.assignment_state === "unconfirmed") throw new SubmissionError(422, "Ketentuan assignment belum dikonfirmasi.");
-    const slot = `assignment${rank}` as const;
-    if (o.assignment_state === "none") { if (form.has(slot)) throw new SubmissionError(422, "Assignment tidak diperlukan untuk pilihan ini."); }
-    else requirements.push({ slot, formats: o.formats!, max: o.max_bytes!, required: o.assignment_state === "required" });
+  const o1 = catalog.options.find(o => o.main_code === values.division1 && o.sub_code === values.subDivision1);
+  if (!o1 || o1.assignment_state === "unconfirmed") throw new SubmissionError(422, "Ketentuan assignment belum dikonfirmasi.");
+  if (o1.assignment_state === "none") {
+    if (form.has("assignment1")) throw new SubmissionError(422, "Assignment tidak diperlukan untuk pilihan ini.");
+  } else {
+    requirements.push({ slot: "assignment1", formats: o1.formats!, max: o1.max_bytes!, required: o1.assignment_state === "required" });
   }
+  const o2 = catalog.options.find(o => o.main_code === values.division2 && o.sub_code === values.subDivision2);
+  if (!o2) throw new SubmissionError(422, "Pilihan sub-divisi kedua tidak valid.");
+
   const documents: VerifiedDocument[] = [];
   for (const r of requirements.sort((a,b) => a.slot.localeCompare(b.slot))) {
     const file = form.get(r.slot);

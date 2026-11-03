@@ -107,3 +107,80 @@ test('valid PNG content accepted with checksum and image data; corrupted bytes d
  const png=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',ihdr),chunk('IDAT',deflateSync(Buffer.from([0,0,0,0,255]))),chunk('IEND',Buffer.alloc(0))]);
  assert.equal(inspectDocument(png,'image.png','image/png'),'png');png[30]^=1;assert.throws(()=>inspectDocument(png,'image.png','image/png'));
 });
+
+test('Tier 1 GUIDEBOOK_v3 assignment policy enforcement', async () => {
+  const gCatalog = {
+    period: { id: '22222222-2222-4222-a222-222222222222', label: '2026/2027', config_version: 1, approved_at: new Date().toISOString(), is_open: true, opens_at: '2020-01-01T00:00:00Z', closes_at: '2099-01-01T00:00:00Z', batches: ['2026'] },
+    options: [
+      { main_code: 'internal-affairs', sub_code: 'human-capital', main_label: 'Internal Affairs', sub_label: 'Human Capital', assignment_state: 'required', instructions: 'Guidebook link', formats: ['pdf'], max_bytes: 3145728 },
+      { main_code: 'internal-affairs', sub_code: 'internal-engagement', main_label: 'Internal Affairs', sub_label: 'Internal Engagement', assignment_state: 'required', instructions: 'Guidebook link', formats: ['pdf'], max_bytes: 3145728 },
+      { main_code: 'external-affairs', sub_code: 'relations-partnership', main_label: 'External Affairs', sub_label: 'Relations & Partnership', assignment_state: 'none', instructions: 'No assignment', formats: null, max_bytes: null },
+      { main_code: 'external-affairs', sub_code: 'external-engagement', main_label: 'External Affairs', sub_label: 'External Engagement', assignment_state: 'required', instructions: 'Guidebook link', formats: ['pdf'], max_bytes: 3145728 },
+      { main_code: 'media-creative', sub_code: 'website-development', main_label: 'Media Creative', sub_label: 'Website Development', assignment_state: 'required', instructions: 'Guidebook link', formats: ['pdf'], max_bytes: 3145728 },
+    ],
+    requirements: ['cv', 'idCard', 'commitment', 'followProof', 'storyProof'].map(slot => ({ slot, required: true, formats: ['pdf'], max_bytes: 3145728 }))
+  };
+
+  // 1. Rank 1 Human Capital with valid assignment1 -> Accepted
+  const f1 = form({ division1: 'internal-affairs', subDivision1: 'human-capital', division2: 'external-affairs', subDivision2: 'relations-partnership' });
+  f1.set('assignment1', new File([pdf], 'hc.pdf', { type: 'application/pdf' }));
+  const p1 = await validatePayload(f1, gCatalog);
+  assert.equal(p1.documents.some(d => d.slot === 'assignment1'), true);
+
+  // 2. Rank 1 Human Capital without assignment1 -> Rejected
+  const f2 = form({ division1: 'internal-affairs', subDivision1: 'human-capital', division2: 'external-affairs', subDivision2: 'relations-partnership' });
+  await assert.rejects(() => validatePayload(f2, gCatalog));
+
+  // 3. Rank 1 Relations & Partnership without assignment -> Accepted
+  const f3 = form({ division1: 'external-affairs', subDivision1: 'relations-partnership', division2: 'internal-affairs', subDivision2: 'human-capital' });
+  const p3 = await validatePayload(f3, gCatalog);
+  assert.equal(p3.documents.some(d => d.slot === 'assignment1'), false);
+
+  // 4. Rank 1 Relations & Partnership with assignment1 -> Rejected
+  const f4 = form({ division1: 'external-affairs', subDivision1: 'relations-partnership', division2: 'internal-affairs', subDivision2: 'human-capital' });
+  f4.set('assignment1', new File([pdf], 'rel.pdf', { type: 'application/pdf' }));
+  await assert.rejects(() => validatePayload(f4, gCatalog));
+
+  // 5. Rank 2 Human Capital without assignment2 -> Accepted (even when Human Capital has assignment_state='required')
+  const f5 = form({ division1: 'external-affairs', subDivision1: 'relations-partnership', division2: 'internal-affairs', subDivision2: 'human-capital' });
+  const p5 = await validatePayload(f5, gCatalog);
+  assert.equal(p5.documents.some(d => d.slot === 'assignment2'), false);
+
+  // 6. Rank 2 Relations & Partnership without assignment2 -> Accepted
+  const f6 = form({ division1: 'media-creative', subDivision1: 'website-development', division2: 'external-affairs', subDivision2: 'relations-partnership' });
+  f6.set('assignment1', new File([pdf], 'web.pdf', { type: 'application/pdf' }));
+  const p6 = await validatePayload(f6, gCatalog);
+  assert.equal(p6.documents.some(d => d.slot === 'assignment2'), false);
+
+  // 7. Any rank 2 with assignment2 -> Rejected
+  const f7a = form({ division1: 'external-affairs', subDivision1: 'relations-partnership', division2: 'internal-affairs', subDivision2: 'human-capital' });
+  f7a.set('assignment2', new File([pdf], 'hc2.pdf', { type: 'application/pdf' }));
+  await assert.rejects(() => validatePayload(f7a, gCatalog));
+
+  const f7b = form({ division1: 'media-creative', subDivision1: 'website-development', division2: 'external-affairs', subDivision2: 'relations-partnership' });
+  f7b.set('assignment1', new File([pdf], 'web.pdf', { type: 'application/pdf' }));
+  f7b.set('assignment2', new File([pdf], 'rel2.pdf', { type: 'application/pdf' }));
+  await assert.rejects(() => validatePayload(f7b, gCatalog));
+
+  // 8. Invalid assignment1 format (plain text instead of PDF) -> Rejected
+  const f8 = form({ division1: 'internal-affairs', subDivision1: 'human-capital', division2: 'external-affairs', subDivision2: 'relations-partnership' });
+  f8.set('assignment1', new File(['not a pdf'], 'hc.txt', { type: 'text/plain' }));
+  await assert.rejects(() => validatePayload(f8, gCatalog));
+
+  // 9. Oversized assignment1 PDF (> 3 MiB) -> Rejected
+  const f9 = form({ division1: 'internal-affairs', subDivision1: 'human-capital', division2: 'external-affairs', subDivision2: 'relations-partnership' });
+  f9.set('assignment1', new File([Buffer.alloc(3145729)], 'oversized.pdf', { type: 'application/pdf' }));
+  await assert.rejects(() => validatePayload(f9, gCatalog));
+
+  // 10. Identical sub-division selected twice -> Rejected
+  const f10 = form({ division1: 'internal-affairs', subDivision1: 'human-capital', division2: 'internal-affairs', subDivision2: 'human-capital' });
+  f10.set('assignment1', new File([pdf], 'hc.pdf', { type: 'application/pdf' }));
+  await assert.rejects(() => validatePayload(f10, gCatalog));
+
+  // 11. Different sub-divisions in same main division -> Accepted
+  const f11 = form({ division1: 'internal-affairs', subDivision1: 'human-capital', division2: 'internal-affairs', subDivision2: 'internal-engagement' });
+  f11.set('assignment1', new File([pdf], 'hc.pdf', { type: 'application/pdf' }));
+  const p11 = await validatePayload(f11, gCatalog);
+  assert.equal(p11.values.division1, p11.values.division2);
+  assert.notEqual(p11.values.subDivision1, p11.values.subDivision2);
+});

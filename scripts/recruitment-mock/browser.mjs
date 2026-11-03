@@ -199,29 +199,37 @@ export async function checkBrowser({ origin, artifacts, env }) {
       await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
       await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
       await waitFor("!!document.getElementById('recruit-division1')", "Keyboard Next failed");
-      for (const rank of [1, 2]) {
-        const prefix = rank === 1 ? "a" : "b";
-        assert(await evaluate(`document.getElementById('recruit-subDivision${rank}').disabled`));
-        await fill(`division${rank}`, rank === 1 ? "example-a" : "example-b");
-        assert(await evaluate(`!document.getElementById('recruit-subDivision${rank}').disabled && [...document.getElementById('recruit-subDivision${rank}').options].slice(1).every(option=>option.value.startsWith('${prefix}-'))`));
-        await fill(`subDivision${rank}`, `${prefix}-required`);
-        await fill(`motivation${rank}`, `Alasan sintetis untuk pilihan ${rank}.`);
-        assert.equal(await evaluate(`document.getElementById('recruit-assignment${rank}').getAttribute('aria-required')`), "true");
-        await click("Next");
-        assert(await evaluate(`document.getElementById('recruit-assignment${rank}-error') !== null`));
-        for (const [filename, message] of [["wrong.txt", "PDF"], ["oversize.pdf", "3 MiB"], ["empty.pdf", "empty"]]) {
-          await upload(`assignment${rank}`, filename);
-          assert((await evaluate(`document.getElementById('recruit-assignment${rank}-error').textContent`)).includes(message));
-        }
-        await upload(`assignment${rank}`, `preference-${rank}.pdf`);
-        if (rank === 1) {
-          await click("Back");
-          assert.equal(await evaluate("document.getElementById('recruit-fullName').value"), "Synthetic Applicant");
-          await click("Next");
-          assert(await evaluate("document.getElementById('recruit-subDivision1').value === 'a-required' && document.body.textContent.includes('preference-1.pdf')"));
-        }
-        await click("Next");
+
+      // Rank 1: First preference with required assignment
+      assert(await evaluate("document.getElementById('recruit-subDivision1').disabled"));
+      await fill("division1", "example-a");
+      assert(await evaluate("!document.getElementById('recruit-subDivision1').disabled && [...document.getElementById('recruit-subDivision1').options].slice(1).every(option=>option.value.startsWith('a-'))"));
+      await fill("subDivision1", "a-required");
+      await fill("motivation1", "Alasan sintetis untuk pilihan 1.");
+      assert.equal(await evaluate("document.getElementById('recruit-assignment1').getAttribute('aria-required')"), "true");
+      await click("Next");
+      assert(await evaluate("document.getElementById('recruit-assignment1-error') !== null"));
+      for (const [filename, message] of [["wrong.txt", "PDF"], ["oversize.pdf", "3 MiB"], ["empty.pdf", "empty"]]) {
+        await upload("assignment1", filename);
+        assert((await evaluate("document.getElementById('recruit-assignment1-error').textContent")).includes(message));
       }
+      await upload("assignment1", "preference-1.pdf");
+      await click("Back");
+      assert.equal(await evaluate("document.getElementById('recruit-fullName').value"), "Synthetic Applicant");
+      await click("Next");
+      assert(await evaluate("document.getElementById('recruit-subDivision1').value === 'a-required' && document.body.textContent.includes('preference-1.pdf')"));
+      await click("Next");
+
+      // Rank 2: Second preference has NO assignment upload
+      assert(await evaluate("document.getElementById('recruit-subDivision2').disabled"));
+      await fill("division2", "example-b");
+      assert(await evaluate("!document.getElementById('recruit-subDivision2').disabled && [...document.getElementById('recruit-subDivision2').options].slice(1).every(option=>option.value.startsWith('b-'))"));
+      await fill("subDivision2", "b-required");
+      await fill("motivation2", "Alasan sintetis untuk pilihan 2.");
+      assert(await evaluate("document.getElementById('recruit-assignment2') === null"));
+      assert((await evaluate("document.body.textContent")).includes("Assignments only apply to your first preference choice"));
+      await click("Next");
+
       await click("Review application");
       assert.equal(await evaluate("document.querySelectorAll('[aria-invalid=true]').length"), 5);
       for (const key of ["cv", "idCard", "commitment"]) await upload(key, "sample.pdf");
@@ -232,104 +240,127 @@ export async function checkBrowser({ origin, artifacts, env }) {
       await upload("cv", "sample.pdf");
       await click("Review application");
       assert.equal(await submitDisabled(), false);
-      for (const rank of [1, 2]) assert((await summary(rank)).includes(`Required · preference-${rank}.pdf`));
+      assert((await summary(1)).includes("Required · preference-1.pdf"));
+      assert((await summary(2)).includes("No assignment required"));
       await screenshot(`wizard-required-review-${viewport.name}.png`, summarySelector(1));
 
       // Same parent is allowed; the exact same sub-division is blocked.
       await click('Edit Second preference');
       await fill('division2', 'example-a');
       await fill('subDivision2', 'a-required');
-      await upload('assignment2', 'preference-2.pdf');
       await click('Next');
       assert((await evaluate("document.getElementById('recruit-subDivision2-error').textContent")).includes('Choose two different sub-divisions'));
       await fill('subDivision2', 'a-optional');
-      assert(!(await evaluate('document.body.textContent')).includes('preference-2.pdf'));
+      assert(await evaluate("document.getElementById('recruit-assignment2') === null"));
       await finishReview(2);
       assert.equal(await submitDisabled(), false);
       await click('Edit Second preference');
       await fill('division2', 'example-b');
       await fill('subDivision2', 'b-required');
-      await upload('assignment2', 'preference-2.pdf');
       await finishReview(2);
 
-      // Drive every conditional state on both preferences at both viewport sizes.
-      for (const rank of [1, 2]) {
-        const prefix = rank === 1 ? "a" : "b";
-        const originalDivision = rank === 1 ? "example-a" : "example-b";
-        const otherDivision = rank === 1 ? "example-b" : "example-a";
-        const otherPrefix = rank === 1 ? "b" : "a";
-        const editLabel = `Edit ${rank === 1 ? "First" : "Second"} preference`;
-        await click(editLabel);
-        await fill(`subDivision${rank}`, `${prefix}-optional`);
-        assert.equal(await evaluate(`document.getElementById('recruit-assignment${rank}').getAttribute('aria-required')`), "false");
-        assert(!(await evaluate("document.body.textContent")).includes(`preference-${rank}.pdf`), "Sub-division retained an irrelevant assignment");
-        await upload(`assignment${rank}`, "wrong.txt");
-        await click("Next");
-        assert(await evaluate(`document.getElementById('recruit-assignment${rank}-error') !== null`), "Optional invalid file accepted");
-        await click(`Remove ${rank === 1 ? "First" : "Second"} preference assignment`);
-        await finishReview(rank);
-        assert((await summary(rank)).includes("Not attached (optional)"));
-        assert.equal(await submitDisabled(), false);
-        await click(editLabel);
-        await upload(`assignment${rank}`, `preference-${rank}.pdf`);
-        await finishReview(rank);
-        assert((await summary(rank)).includes(`Optional · preference-${rank}.pdf`));
+      // Drive every conditional state on First preference at both viewport sizes.
+      const editLabel = "Edit First preference";
+      await click(editLabel);
+      await fill("subDivision1", "a-optional");
+      assert.equal(await evaluate("document.getElementById('recruit-assignment1').getAttribute('aria-required')"), "false");
+      assert(!(await evaluate("document.body.textContent")).includes("preference-1.pdf"), "Sub-division retained an irrelevant assignment");
+      await upload("assignment1", "wrong.txt");
+      await click("Next");
+      assert(await evaluate("document.getElementById('recruit-assignment1-error') !== null"), "Optional invalid file accepted");
+      await click("Remove First preference assignment");
+      await finishReview(1);
+      assert((await summary(1)).includes("Not attached (optional)"));
+      assert.equal(await submitDisabled(), false);
+      await click(editLabel);
+      await upload("assignment1", "preference-1.pdf");
+      await finishReview(1);
+      assert((await summary(1)).includes("Optional · preference-1.pdf"));
 
-        await click(editLabel);
-        await fill(`subDivision${rank}`, `${prefix}-none`);
-        assert(await evaluate(`document.getElementById('recruit-assignment${rank}') === null`));
-        assert(!(await evaluate("document.body.textContent")).includes(`preference-${rank}.pdf`));
-        assert((await evaluate("document.body.textContent")).includes("No assignment is needed"));
-        await noOverflow();
-        await screenshot(`wizard-none-${rank}-${viewport.name}.png`, `#recruit-division${rank}`);
-        await finishReview(rank);
-        assert((await summary(rank)).includes("No assignment required"));
-        assert.equal(await submitDisabled(), false);
+      await click(editLabel);
+      await fill("subDivision1", "a-none");
+      assert(await evaluate("document.getElementById('recruit-assignment1') === null"));
+      assert(!(await evaluate("document.body.textContent")).includes("preference-1.pdf"));
+      assert((await evaluate("document.body.textContent")).includes("No assignment is needed"));
+      await noOverflow();
+      await screenshot(`wizard-none-1-${viewport.name}.png`, "#recruit-division1");
+      await finishReview(1);
+      assert((await summary(1)).includes("No assignment required"));
+      assert.equal(await submitDisabled(), false);
 
-        await click(editLabel);
-        await fill(`subDivision${rank}`, `${prefix}-unconfirmed`);
-        assert(await evaluate(`document.getElementById('recruit-assignment${rank}') === null`));
-        await finishReview(rank);
-        assert((await summary(rank)).includes("Unconfirmed — submission blocked"));
-        assert.equal(await submitDisabled(), true);
-        assert(await evaluate("document.getElementById('submission-blockers') !== null"));
-        await click("Complete preview");
-        assert(!(await evaluate("document.body.textContent")).includes("Preview completed."));
-        await screenshot(`wizard-unconfirmed-${rank}-${viewport.name}.png`, "#submission-blockers");
+      await click(editLabel);
+      await fill("subDivision1", "a-unconfirmed");
+      assert(await evaluate("document.getElementById('recruit-assignment1') === null"));
+      await finishReview(1);
+      assert((await summary(1)).includes("Unconfirmed — submission blocked"));
+      assert.equal(await submitDisabled(), true);
+      assert(await evaluate("document.getElementById('submission-blockers') !== null"));
+      await click("Complete preview");
+      assert(!(await evaluate("document.body.textContent")).includes("Preview completed."));
+      await screenshot(`wizard-unconfirmed-1-${viewport.name}.png`, "#submission-blockers");
 
-        await click(editLabel);
-        await fill(`subDivision${rank}`, `${prefix}-required`);
-        await upload(`assignment${rank}`, `preference-${rank}.pdf`);
-        await fill(`division${rank}`, otherDivision);
-        assert.equal(await evaluate(`document.getElementById('recruit-subDivision${rank}').value`), "");
-        assert(await evaluate(`document.getElementById('recruit-assignment${rank}') === null`));
-        assert(!(await evaluate("document.body.textContent")).includes(`preference-${rank}.pdf`));
-        await fill(`subDivision${rank}`, `${otherPrefix}-required`);
-        await click("Next");
-        assert(await evaluate(`document.getElementById('recruit-assignment${rank}-error') !== null`), "Main-division change retained assignment state");
-        await fill(`division${rank}`, originalDivision);
-        await fill(`subDivision${rank}`, `${prefix}-required`);
-        await upload(`assignment${rank}`, `preference-${rank}.pdf`);
-        await finishReview(rank);
-        for (const current of [1, 2]) assert((await summary(current)).includes(`Required · preference-${current}.pdf`), "Changing one preference affected the other");
-      }
+      await click(editLabel);
+      await fill("subDivision1", "a-required");
+      await upload("assignment1", "preference-1.pdf");
+      await fill("division1", "example-b");
+      assert.equal(await evaluate("document.getElementById('recruit-subDivision1').value"), "");
+      assert(await evaluate("document.getElementById('recruit-assignment1') === null"));
+      assert(!(await evaluate("document.body.textContent")).includes("preference-1.pdf"));
+      await fill("subDivision1", "b-required");
+      await click("Next");
+      assert(await evaluate("document.getElementById('recruit-assignment1-error') !== null"), "Main-division change retained assignment state");
+      await fill("division1", "example-a");
+      await fill("subDivision1", "a-required");
+      await upload("assignment1", "preference-1.pdf");
+      await finishReview(1);
+      assert((await summary(1)).includes("Required · preference-1.pdf"));
+      assert((await summary(2)).includes("No assignment required"));
 
-      // Draft data remains separate and blocked; switching catalogue clears both
-      // assignments but preserves personal details and supporting documents.
+      // Verify rank 2 never requires an assignment across any sub-division state
+      await click("Edit Second preference");
+      await fill("subDivision2", "b-optional");
+      assert(await evaluate("document.getElementById('recruit-assignment2') === null"));
+      await finishReview(2);
+      assert((await summary(2)).includes("No assignment required"));
+      assert.equal(await submitDisabled(), false);
+
+      await click("Edit Second preference");
+      await fill("subDivision2", "b-none");
+      assert(await evaluate("document.getElementById('recruit-assignment2') === null"));
+      await finishReview(2);
+      assert((await summary(2)).includes("No assignment required"));
+      assert.equal(await submitDisabled(), false);
+
+      // Draft data switching: switching catalogue clears assignments
       await fill("catalog", "draft");
       assert.equal(await evaluate("document.getElementById('recruit-fullName').value"), "Synthetic Applicant");
       await click("Next");
-      await fill("division1", "internal-affairs");
-      await fill("subDivision1", "human-capital");
+      await fill("division1", "external-affairs");
+      await fill("subDivision1", "relations-partnership");
       assert(await evaluate("document.getElementById('recruit-assignment1') === null"));
+      await fill("motivation1", "Synthetic motivation");
       await click("Next");
       await fill("division2", "finance");
       await fill("subDivision2", "sponsorship");
+      await fill("motivation2", "Synthetic motivation");
       await finishReview(2);
-      assert((await summary(1)).includes("Human Capital") && (await summary(2)).includes("Sponsorship"));
-      assert.equal(await submitDisabled(), true);
-      assert(!(await summary(1)).includes("preference-1.pdf") && !(await summary(2)).includes("preference-2.pdf"));
+      assert((await summary(1)).includes("Relations & Partnership") && (await summary(2)).includes("Sponsorship"));
+      assert((await summary(1)).includes("No assignment required") && (await summary(2)).includes("No assignment required"));
+      assert.equal(await submitDisabled(), false);
       await screenshot(`wizard-draft-review-${viewport.name}.png`, summarySelector(1));
+
+      // Test draft rank 1 requiring an assignment
+      await click("Edit First preference");
+      await fill("division1", "internal-affairs");
+      await fill("subDivision1", "human-capital");
+      assert(await evaluate("document.getElementById('recruit-assignment1') !== null"));
+      await click("Next");
+      assert(await evaluate("document.getElementById('recruit-assignment1-error') !== null"));
+      await upload("assignment1", "preference-1.pdf");
+      await finishReview(1);
+      assert((await summary(1)).includes("Required · preference-1.pdf"));
+      assert((await summary(2)).includes("No assignment required"));
+      assert.equal(await submitDisabled(), false);
 
       await fill("catalog", "demo");
       await click("Next");
@@ -340,7 +371,7 @@ export async function checkBrowser({ origin, artifacts, env }) {
       await fill("subDivision2", "b-optional");
       await finishReview(2);
       assert((await summary(1)).includes("No assignment required"));
-      assert((await summary(2)).includes("Not attached (optional)"));
+      assert((await summary(2)).includes("No assignment required"));
       assert.equal(await submitDisabled(), false);
       await screenshot(`wizard-review-${viewport.name}.png`, summarySelector(1));
       await click("Complete preview");

@@ -73,7 +73,7 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
     setValues((previous) => ({ ...previous, [field]: value, ...(level === "division" ? { [fields.subDivision]: "" } : {}) }));
     clearAssignment(fields.assignment);
     setErrors((previous) => ({ ...previous, subDivision1: undefined, subDivision2: undefined, [fields.division]: undefined, [fields.assignment]: undefined }));
-    setSelectionNotice(`Your ${preferenceLabel(rank)} preference was updated. Its assignment file was cleared${level === "division" ? "; choose a sub-division again" : ""}.`);
+    setSelectionNotice(`Your ${preferenceLabel(rank)} preference was updated.${rank === 1 ? ` Its assignment file was cleared${level === "division" ? "; choose a sub-division again" : ""}.` : level === "division" ? " Choose a sub-division again." : ""}`);
   }
 
   function changeCatalog(next: RecruitmentCatalog) {
@@ -89,6 +89,7 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
   }
 
   function changeFile(key: DocumentKey, file?: File) {
+    if (key === "assignment2") return;
     setFiles((previous) => {
       const next = { ...previous };
       if (file) next[key] = file;
@@ -96,8 +97,8 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
       return next;
     });
     let error: string | undefined;
-    if (key === "assignment1" || key === "assignment2") {
-      const fields = preferenceFields[key === "assignment1" ? 1 : 2];
+    if (key === "assignment1") {
+      const fields = preferenceFields[1];
       const { subDivision } = resolvePreference(period, values[fields.division], values[fields.subDivision]);
       error = file ? validateAssignment(subDivision?.assignment, file, false) : undefined;
     } else error = file ? validateFile(key, file) : undefined;
@@ -127,7 +128,7 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
   function edit(target: number) { setStep(target); setPhase("editing"); setErrors({}); }
 
   function simulateSubmission() {
-  if (recruitmentConfig.status !== "open") return;
+    if (recruitmentConfig.status !== "open") return;
     for (let index = 0; index < 4; index++) if (!check(index, true)) return;
     // Deliberately synchronous, memory-only UI transition. No submission adapter,
     // server action, fetch, analytics event, or persistent storage is involved.
@@ -145,7 +146,7 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
     try {
       const body = new FormData();
       for (const [key, value] of Object.entries(values)) body.append(key, value);
-      for (const [key, file] of Object.entries(files)) if (file) body.append(key, file);
+      for (const [key, file] of Object.entries(files)) if (file && key !== "assignment2") body.append(key, file);
       const response = await fetch("/api/recruitment", { method: "POST", credentials: "same-origin", headers: { "x-recruitment-session": session.current }, body });
       const data = await response.json();
       if (!response.ok) { setErrors(data.fields ?? {}); throw new Error(data.error); }
@@ -203,7 +204,7 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
       <section className="min-w-0 rounded-3xl border border-[#e4e5ef] bg-white p-5 sm:p-8">
         <p className="text-xs font-semibold tracking-[0.12em] text-iris uppercase">Step {step + 1} of 4{phase === "review" ? " · Review" : ""}</p>
         <h1 ref={heading} tabIndex={-1} id="wizard-title" className="mt-3 scroll-mt-32 font-display text-2xl font-semibold tracking-tight outline-none sm:text-3xl">{phase === "review" ? (backend ? "Review your application" : "Review your preview") : steps[step]}</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{phase === "review" ? (backend ? "Check your information carefully. Submitted applications cannot be edited directly." : "Check your entries. Completing this preview will not submit an application.") : step === 0 ? (backend ? "Enter your personal information as shown on your documents." : "Use sample information to explore the application process.") : step === 3 ? (backend ? "Attach the five supporting documents using the requirements shown below." : "Choose five sample documents, then review your preview.") : (backend ? "Assignment requirements depend on your selected sub-division." : "Explore your preference and its assignment requirements. Preview rules are not official.")}</p>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{phase === "review" ? (backend ? "Check your information carefully. Submitted applications cannot be edited directly." : "Check your entries. Completing this preview will not submit an application.") : step === 0 ? (backend ? "Enter your personal information as shown on your documents." : "Use sample information to explore the application process.") : step === 1 ? (backend ? "Assignment requirements depend on your selected first-choice sub-division." : "Explore your first preference and its assignment requirements.") : step === 2 ? "Second preference does not require an assignment. Assignments apply only to your first preference." : step === 3 ? (backend ? "Attach the five supporting documents using the requirements shown below." : "Choose five sample documents, then review your preview.") : (backend ? "Assignment requirements depend on your selected first-choice sub-division." : "Explore your preference and its assignment requirements. Preview rules are not official.")}</p>
         {errorCount > 0 && <div role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">Please check {errorCount} highlighted fields and the messages below.</div>}
         {phase === "review" ? <fieldset disabled={sending} className="mt-8 space-y-7">
           <SummaryGroup title="Personal information" onEdit={() => edit(0)}><dl className="grid gap-4 sm:grid-cols-2">{[...personalFields.map((field) => [field.label, values[field.key]]), ["Cohort", values.batch]].map(([label, value]) => <SummaryValue key={label} label={label} value={value} />)}</dl></SummaryGroup>
@@ -211,7 +212,9 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
           {([1, 2] as const).map((rank) => {
             const fields = preferenceFields[rank];
             const { division, subDivision } = resolvePreference(period, values[fields.division], values[fields.subDivision]);
-            const assignment = assignmentPresentation(subDivision?.assignment, files[fields.assignment], !backend);
+            const assignment = rank === 2
+              ? { summary: "No assignment required" }
+              : assignmentPresentation(subDivision?.assignment, files[fields.assignment], !backend);
             return <SummaryGroup key={rank} title={`${rank === 1 ? "First" : "Second"} preference`} onEdit={() => edit(rank)}><dl className="space-y-4"><SummaryValue label="Main division" value={(!backend ? previewText(division?.label) : division?.label) ?? "—"} /><SummaryValue label="Sub-division" value={(!backend ? previewText(subDivision?.label) : subDivision?.label) ?? "—"} /><SummaryValue label="Motivation" value={values[fields.motivation]} /><SummaryValue label="Assignment" value={assignment.summary} /></dl></SummaryGroup>;
           })}
           <SummaryGroup title="Supporting documents" onEdit={() => edit(3)}><dl className="space-y-4">{documentSlots.map((slot) => <SummaryValue key={slot.key} label={`${documentLabel(slot.key)} (${slot.format})`} value={`${files[slot.key]?.name ?? "—"} · ${((files[slot.key]?.size ?? 0) / 1024).toFixed(1)} KiB`} />)}</dl></SummaryGroup>

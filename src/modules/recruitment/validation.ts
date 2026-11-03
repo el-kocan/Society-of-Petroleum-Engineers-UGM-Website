@@ -48,7 +48,7 @@ export function validateStep(step: number, values: ApplicationValues, files: App
       errors.birthDate = "Masukkan tanggal lahir yang valid, bukan tanggal mendatang.";
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.ugmEmail.trim()) || values.ugmEmail.length > 254) errors.ugmEmail = "Masukkan alamat email yang valid.";
-    if (!/^\+?[\d ()-]{8,25}$/.test(values.phoneNumber.trim()) || values.phoneNumber.replace(/\D/g, "").length < 8) errors.phoneNumber = "Masukkan nomor telepon dengan 8â€“25 karakter.";
+    if (!/^\+?[\d ()-]{8,25}$/.test(values.phoneNumber.trim()) || values.phoneNumber.replace(/\D/g, "").length < 8) errors.phoneNumber = "Masukkan nomor telepon dengan 8–25 karakter.";
     if (!period.batches.includes(values.batch)) errors.batch = `Pilih angkatan ${period.batches.join(" atau ")}.`;
   }
   if (step === 1 || step === 2) {
@@ -61,7 +61,7 @@ export function validateStep(step: number, values: ApplicationValues, files: App
     }
     if (!values[fields.motivation].trim()) errors[fields.motivation] = "Tuliskan alasan memilih sub-divisi.";
     else if (values[fields.motivation].length > 3000) errors[fields.motivation] = "Maksimum 3.000 karakter.";
-    if (subDivision) {
+    if (step === 1 && subDivision) {
       const error = validateAssignment(subDivision.assignment, files[fields.assignment], forSubmission);
       if (error) {
         const key = subDivision.assignment.status === "unconfirmed" ? fields.subDivision : fields.assignment;
