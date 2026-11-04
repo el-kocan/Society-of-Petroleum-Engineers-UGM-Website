@@ -226,6 +226,32 @@ export function RecruitmentLanding({ backend = false }: { backend?: boolean } = 
           </ul>
         </div>
       </section>
+
+      <section
+        id="ready-to-join"
+        aria-labelledby="ready-to-join-title"
+        className="mt-8 rounded-3xl border border-[#dcddea] bg-white p-6 sm:p-10 shadow-[0_2px_12px_rgba(40,24,96,0.04)]"
+      >
+        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold tracking-[0.15em] text-iris uppercase">
+              Recruitment 2026/2027
+            </p>
+            <h2
+              id="ready-to-join-title"
+              className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink-deep sm:text-3xl"
+            >
+              Ready to Join SPE UGM SC?
+            </h2>
+            <p className="mt-2 text-base leading-relaxed text-ink-soft">
+              Take the next step and become part of our community.
+            </p>
+          </div>
+          <div className="shrink-0">
+            <ApplicationEntry backend={backend} />
+          </div>
+        </div>
+      </section>
     </RecruitmentFrame>
   );
 }

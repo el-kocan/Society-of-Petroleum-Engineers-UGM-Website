@@ -5,6 +5,7 @@ import { inputStyle } from "./components";
 import { Field, FileField } from "./form-fields";
 import { preferenceFields, type PreferenceRank, type RecruitmentPeriod } from "./recruitment-types";
 import { assignmentPresentation, previewText } from "./presentation";
+import { OFFICIAL_GUIDEBOOK_URL } from "./public-information";
 import type { ApplicationFiles, ApplicationValues, Errors } from "./validation";
 
 export function PreferenceStep({ rank, preview = false, period, values, files, errors, onDivision, onSubDivision, onMotivation, onFile }: {
@@ -45,8 +46,24 @@ export function PreferenceStep({ rank, preview = false, period, values, files, e
       </Field>
       {rank === 1 ? (
         <>
-          <div role="status" aria-live="polite" className="rounded-2xl bg-[#f0eefb] p-4 text-[15px] leading-relaxed">
-            <p className="font-semibold text-ink-deep">Assignment · First preference: {assignment.label}</p>
+          <div role="status" aria-live="polite" className="rounded-2xl bg-[#f0eefb] p-4 sm:p-5 text-[15px] leading-relaxed">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="font-semibold text-ink-deep">Assignment · First preference: {assignment.label}</p>
+              {OFFICIAL_GUIDEBOOK_URL ? (
+                <a
+                  href={OFFICIAL_GUIDEBOOK_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5947b5] hover:text-[#43358b] hover:underline focus-visible:outline-2 focus-visible:outline-iris"
+                >
+                  View Guidebook <span aria-hidden="true">↗</span>
+                </a>
+              ) : (
+                <span className="text-xs text-ink-soft">
+                  Official guidebook publication pending
+                </span>
+              )}
+            </div>
             <p className="mt-2 text-ink-soft">{assignment.message}</p>
             {period.contentState !== "demo" && <p className="mt-2 text-ink-soft">For the official catalogue, all 12 sub-divisions other than Relations &amp; Partnership require one first-preference assignment PDF (max 3 MiB). No assignment is accepted for Relations &amp; Partnership.</p>}
             {period.contentState !== "demo" && assignment.upload && <p className="mt-2 text-ink-soft">Include any applicable video, portfolio or external submission links inside the PDF. Filename recommendations are advisory.</p>}
@@ -64,8 +81,24 @@ export function PreferenceStep({ rank, preview = false, period, values, files, e
           )}
         </>
       ) : (
-        <div role="status" aria-live="polite" className="rounded-2xl bg-[#f0eefb] p-4 text-[15px] leading-relaxed">
-          <p className="font-semibold text-ink-deep">Assignment · Second preference: Not required</p>
+        <div role="status" aria-live="polite" className="rounded-2xl bg-[#f0eefb] p-4 sm:p-5 text-[15px] leading-relaxed">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-semibold text-ink-deep">Assignment · Second preference: Not required</p>
+            {OFFICIAL_GUIDEBOOK_URL ? (
+              <a
+                href={OFFICIAL_GUIDEBOOK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5947b5] hover:text-[#43358b] hover:underline focus-visible:outline-2 focus-visible:outline-iris"
+              >
+                View Guidebook <span aria-hidden="true">↗</span>
+              </a>
+            ) : (
+              <span className="text-xs text-ink-soft">
+                Official guidebook publication pending
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-ink-soft">
             Assignments only apply to your first preference choice. No assignment is required or accepted for your second preference.
           </p>

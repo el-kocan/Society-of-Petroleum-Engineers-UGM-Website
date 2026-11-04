@@ -23,7 +23,7 @@ export function googleSettings(): GoogleBackendSettings {
     process.env.RECRUITMENT_ENABLED === "true" ||
     process.env.RECRUITMENT_STAGING_ENABLED === "true";
   if (!enabled) {
-    throw new SubmissionError(503, "Pendaftaran belum tersedia. Silakan hubungi panitia.");
+    throw new SubmissionError(503, "Applications are currently unavailable. Please contact the committee.");
   }
 
   const vercelEnv = process.env.VERCEL_ENV;
@@ -32,7 +32,7 @@ export function googleSettings(): GoogleBackendSettings {
     if (process.env.RECRUITMENT_PREVIEW_SUBMISSIONS_ENABLED !== "true") {
       throw new SubmissionError(
         503,
-        "Pendaftaran tidak menerima pengiriman di lingkungan preview deployment.",
+        "Applications do not accept submissions in preview deployment environments.",
       );
     }
   }
@@ -48,7 +48,7 @@ export function googleSettings(): GoogleBackendSettings {
   const sessionSecret = process.env.RECRUITMENT_SESSION_SECRET;
 
   if (!origin || !sessionSecret || sessionSecret.length < 32) {
-    throw new SubmissionError(503, "Konfigurasi sesi pendaftaran belum lengkap.");
+    throw new SubmissionError(503, "Application session configuration is incomplete.");
   }
 
   const parsedOrigin = new URL(origin);
@@ -60,12 +60,12 @@ export function googleSettings(): GoogleBackendSettings {
         ["localhost", "127.0.0.1"].includes(parsedOrigin.hostname)
       ))
   ) {
-    throw new SubmissionError(503, "Konfigurasi origin pendaftaran belum sesuai.");
+    throw new SubmissionError(503, "Application origin configuration is invalid.");
   }
 
   const scriptUrl = process.env.RECRUITMENT_APPS_SCRIPT_URL;
   if (!scriptUrl) {
-    throw new SubmissionError(503, "Konfigurasi Google Apps Script URL belum tersedia.");
+    throw new SubmissionError(503, "Google Apps Script URL is not configured.");
   }
 
   try {
@@ -80,12 +80,12 @@ export function googleSettings(): GoogleBackendSettings {
       throw new Error();
     }
   } catch {
-    throw new SubmissionError(503, "RECRUITMENT_APPS_SCRIPT_URL harus berupa URL yang valid.");
+    throw new SubmissionError(503, "RECRUITMENT_APPS_SCRIPT_URL must be a valid URL.");
   }
 
   const scriptSecret = process.env.RECRUITMENT_APPS_SCRIPT_SECRET;
   if (!scriptSecret || scriptSecret.length < 16) {
-    throw new SubmissionError(503, "Konfigurasi Google Apps Script Secret belum tersedia atau terlalu pendek.");
+    throw new SubmissionError(503, "Google Apps Script secret is missing or too short.");
   }
 
   return {
@@ -280,6 +280,23 @@ export async function googleCleanupSubmission(
   }
 }
 
+function translateGoogleError(error: string | undefined): string {
+  if (!error) return "Failed to process application.";
+  if (error.includes("pernah mendaftar") || (error.includes("NIM") && (error.includes("hubungi") || error.includes("dibuat")))) {
+    return "An application has already been submitted with this Student ID (NIM). If you previously applied, please contact the committee.";
+  }
+  if (error.includes("belum dibuka")) return "Applications are not yet open.";
+  if (error.includes("sudah ditutup")) return "Applications have closed.";
+  if (error.includes("sedang sibuk")) return "The system is currently busy processing other submissions. Please try again shortly.";
+  if (error.includes("Checksum dokumen") || error.includes("tidak sesuai. Unggah ulang")) {
+    return "Document checksum verification failed. Please re-upload the file.";
+  }
+  if (error.includes("Field pendaftaran tidak lengkap")) return "Application fields are incomplete.";
+  if (error.includes("Data unggahan file tidak lengkap")) return "Upload data is incomplete.";
+  if (error.includes("kesalahan internal")) return "An internal error occurred while communicating with Google services.";
+  return error;
+}
+
 async function callAppsScript(
   scriptUrl: string,
   secret: string,
@@ -312,7 +329,7 @@ async function callAppsScript(
     if (!res.ok) {
       throw new SubmissionError(
         res.status === 409 ? 409 : 503,
-        "Layanan pendaftaran Google tidak merespons dengan benar.",
+        "Google Sheets service did not respond correctly.",
       );
     }
 
@@ -321,8 +338,10 @@ async function callAppsScript(
       const isConflict =
         Boolean(data.error?.includes("NIM")) ||
         Boolean(data.error?.includes("pernah mendaftar")) ||
-        Boolean(data.error?.includes("sudah ditutup"));
-      throw new SubmissionError(isConflict ? 409 : 503, data.error || "Gagal memproses pendaftaran.");
+        Boolean(data.error?.includes("already registered")) ||
+        Boolean(data.error?.includes("sudah ditutup")) ||
+        Boolean(data.error?.includes("closed"));
+      throw new SubmissionError(isConflict ? 409 : 503, translateGoogleError(data.error));
     }
 
     return data;
@@ -331,7 +350,7 @@ async function callAppsScript(
     if (error instanceof SubmissionError) throw error;
     throw new SubmissionError(
       503,
-      "Pengiriman belum terkonfirmasi. Coba kembali dengan data dan file yang sama.",
+      "Submission has not been confirmed. Please try again with the same information and files.",
     );
   }
 }
@@ -444,7 +463,7 @@ export async function submitToGoogle(
     if (err instanceof SubmissionError) throw err;
     throw new SubmissionError(
       503,
-      "Pengiriman belum terkonfirmasi. Coba kembali dengan data dan file yang sama.",
+      "Submission has not been confirmed. Please try again with the same information and files.",
     );
   }
 }

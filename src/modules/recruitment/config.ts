@@ -23,20 +23,20 @@ export const recruitmentConfig: {
 };
 
 export const statusLabels: Record<RecruitmentStatus, string> = {
-  open: "Simulasi dibuka",
-  closed: "Simulasi ditutup",
-  pending: "Informasi menunggu konfirmasi",
+  open: "Applications Open",
+  closed: "Applications Closed",
+  pending: "Information Pending Confirmation",
 };
 
-export const MOCK_NOTICE = "Simulasi lokal — data tidak dikirim.";
+export const MOCK_NOTICE = "Local simulation — no data submitted.";
 export const MAX_FILE_BYTES = 3 * 1024 * 1024;
 
 export const documentSlots = [
   { key: "cv", label: "Curriculum Vitae", format: "PDF", filename: "Name_CV.pdf", step: 3 },
-  { key: "idCard", label: "Kartu mahasiswa", format: "PDF", filename: "Name_IDCard.pdf", step: 3 },
-  { key: "commitment", label: "Surat komitmen", format: "PDF", filename: "Name_LetterCommitment.pdf", step: 3 },
-  { key: "followProof", label: "Bukti mengikuti SPE", format: "PNG", filename: "Name_ProofFollowSPE.png", step: 3 },
-  { key: "storyProof", label: "Bukti berbagi Instagram Story", format: "PNG", filename: "Name_ProofSG.png", step: 3 },
+  { key: "idCard", label: "Student ID Card (KTM / eKTM)", format: "PDF", filename: "Name_IDCard.pdf", step: 3 },
+  { key: "commitment", label: "Commitment Letter", format: "PDF", filename: "Name_LetterCommitment.pdf", step: 3 },
+  { key: "followProof", label: "Instagram Follow Proof", format: "PNG", filename: "Name_ProofFollowSPE.png", step: 3 },
+  { key: "storyProof", label: "Instagram Story Proof", format: "PNG", filename: "Name_ProofSG.png", step: 3 },
 ] as const;
 
-export const steps = ["Data pribadi", "Divisi pertama", "Divisi kedua", "Dokumen & review"] as const;
+export const steps = ["Personal information", "First preference", "Second preference", "Supporting documents & review"] as const;

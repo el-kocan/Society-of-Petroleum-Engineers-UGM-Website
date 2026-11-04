@@ -42,7 +42,7 @@ function failure(error: unknown) {
     {
       error: known
         ? error.message
-        : "Pengiriman belum terkonfirmasi. Coba kembali dengan data dan file yang sama.",
+        : "Submission has not been confirmed. Please try again with the same information and files.",
       fields: known ? error.fields : undefined,
     },
     { status, headers: resHeaders },
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         getRequestOrigin(request) !== gs.origin ||
         request.headers.get("sec-fetch-site") === "cross-site"
       ) {
-        throw new SubmissionError(403, "Permintaan tidak diizinkan.");
+        throw new SubmissionError(403, "Request not permitted.");
       }
       const clientIp = resolveClientIp(request);
       const sessionIpLimit = getLimitThreshold("RECRUITMENT_LIMIT_SESSION_IP", 60);
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
       getRequestOrigin(request) !== s.origin ||
       request.headers.get("sec-fetch-site") === "cross-site"
     ) {
-      throw new SubmissionError(403, "Permintaan tidak diizinkan.");
+      throw new SubmissionError(403, "Request not permitted.");
     }
     const clientIp = resolveClientIp(request);
     const sessionIpLimit = getLimitThreshold("RECRUITMENT_LIMIT_SESSION_IP", 60);
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
 
       const token = (await cookies()).get(cookieName)?.value;
       if (!token || request.headers.get("x-recruitment-session") !== token) {
-        throw new SubmissionError(403, "Sesi tidak valid. Muat ulang halaman.");
+        throw new SubmissionError(403, "Invalid session. Please reload the page.");
       }
       const key = verifySession(token, gs.sessionSecret);
       await limit(`submission:${key}`, submitSessionLimit, 60000);
@@ -177,17 +177,17 @@ export async function POST(request: Request) {
             (o) => o.main_code === values.division1 && o.sub_code === values.subDivision1,
           );
           if (!o1 || o1.assignment_state === "unconfirmed") {
-            errors.subDivision1 = "Ketentuan assignment belum dikonfirmasi.";
+            errors.subDivision1 = "Assignment requirements are unconfirmed.";
           }
           const o2 = catalog.options.find(
             (o) => o.main_code === values.division2 && o.sub_code === values.subDivision2,
           );
           if (!o2) {
-            errors.subDivision2 = "Pilihan sub-divisi kedua tidak valid.";
+            errors.subDivision2 = "Invalid second sub-division selection.";
           }
 
           if (Object.keys(errors).length > 0) {
-            throw new SubmissionError(422, "Periksa kembali isian Anda.", errors);
+            throw new SubmissionError(422, "Please review your entries.", errors);
           }
 
           const initResult = await googleInitSubmission(catalog, key, values);
@@ -207,7 +207,7 @@ export async function POST(request: Request) {
             typeof form.get("fullName") === "string" ? String(form.get("fullName")).trim() : "";
 
           if (typeof slot !== "string" || !(file instanceof File)) {
-            throw new SubmissionError(400, "Dokumen atau slot pengiriman tidak valid.");
+            throw new SubmissionError(400, "Invalid document or upload slot.");
           }
 
           const catalog = loadGoogleCatalog();
@@ -220,23 +220,23 @@ export async function POST(request: Request) {
           } else {
             const req = catalog.requirements.find((r) => r.slot === slot);
             if (!req) {
-              throw new SubmissionError(400, "Slot dokumen tidak dikenali.");
+              throw new SubmissionError(400, "Unrecognized document slot.");
             }
             maxBytes = req.max_bytes;
             allowedFormats = req.formats;
           }
 
           if (file.size < 1 || file.size > Math.min(maxBytes, 3145728)) {
-            throw new SubmissionError(422, "Ukuran dokumen melebihi batas 3 MiB.", {
-              [slot]: "Periksa dokumen dan batas ukuran.",
+            throw new SubmissionError(422, "Document exceeds the 3 MiB limit.", {
+              [slot]: "Check the document and size limit.",
             });
           }
 
           const bytes = Buffer.from(await file.arrayBuffer());
           const format = inspectDocument(bytes, file.name, file.type);
           if (!allowedFormats.includes(format)) {
-            throw new SubmissionError(422, "Format dokumen tidak sesuai ketentuan.", {
-              [slot]: `Format harus ${allowedFormats.join(" / ").toUpperCase()}.`,
+            throw new SubmissionError(422, "Document format does not match requirements.", {
+              [slot]: `Format must be ${allowedFormats.join(" / ").toUpperCase()}.`,
             });
           }
 
@@ -300,7 +300,7 @@ export async function POST(request: Request) {
 
     const token = (await cookies()).get(cookieName)?.value;
     if (!token || request.headers.get("x-recruitment-session") !== token) {
-      throw new SubmissionError(403, "Sesi tidak valid. Muat ulang halaman.");
+      throw new SubmissionError(403, "Invalid session. Please reload the page.");
     }
     const key = verifySession(token, s.secret);
     await limit(`submission:${key}`, submitSessionLimit, 60000);

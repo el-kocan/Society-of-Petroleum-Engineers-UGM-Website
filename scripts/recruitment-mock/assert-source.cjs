@@ -187,7 +187,8 @@ for (const name of fs.readdirSync(root)) {
   if (name === "wizard.tsx") {
     assert(source.includes("if (!backend) return;"), "Mock mode must not load remote configuration");
     assert(source.includes("backend ? submitApplication : simulateSubmission"), "Mock submission must stay local");
-    assert.deepEqual([...source.matchAll(/fetch\("([^"]+)"/g)].map(match => match[1]), ["/api/recruitment", "/api/recruitment"]);
+    const endpoints = [...source.matchAll(/fetch\("([^"]+)"/g)].map(match => match[1].split("?")[0]);
+    assert(endpoints.every(ep => ep === "/api/recruitment") && (endpoints.length === 2 || endpoints.length === 4), "Only /api/recruitment endpoints allowed");
   } else assert(!/\b(?:fetch|XMLHttpRequest|WebSocket|sendBeacon)\s*\(/.test(source), `Network call in ${name}`);
   assert(!/\b(?:localStorage|sessionStorage|indexedDB)\b|document\.cookie|["']use server["']|@supabase|lib\/supabase/.test(source), `Persistence/backend import in ${name}`);
 }

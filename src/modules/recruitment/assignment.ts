@@ -14,7 +14,7 @@ export function resolvePreference(period: RecruitmentPeriod, divisionId: string,
 }
 
 export function uploadHint(upload: UploadSpecification) {
-  return `${upload.formats.map((format) => uploadFormats[format].label).join(" / ")} · maksimum ${upload.maxBytes / (1024 * 1024)} MiB. Panduan nama: ${upload.filename}.`;
+  return `${upload.formats.map((format) => uploadFormats[format].label).join(" / ")} · max ${upload.maxBytes / (1024 * 1024)} MiB. Suggested filename: ${upload.filename}.`;
 }
 
 export function uploadAccept(upload: UploadSpecification) {
@@ -22,25 +22,25 @@ export function uploadAccept(upload: UploadSpecification) {
 }
 
 export function validateUpload(file: File | undefined, upload: UploadSpecification, required: boolean): string | undefined {
-  if (!file) return required ? "Pilih dokumen untuk melanjutkan." : undefined;
-  if (file.size === 0) return "File kosong. Pilih file lain.";
-  if (file.size > upload.maxBytes) return `File melebihi batas ${upload.maxBytes / (1024 * 1024)} MiB.`;
+  if (!file) return required ? "Choose a file to continue." : undefined;
+  if (file.size === 0) return "This file is empty. Choose another file.";
+  if (file.size > upload.maxBytes) return `This file exceeds the ${upload.maxBytes / (1024 * 1024)} MiB limit.`;
   if (!upload.formats.some((format) => file.name.toLowerCase().endsWith(uploadFormats[format].extension) && file.type === uploadFormats[format].mime)) {
-    return `Gunakan file ${upload.formats.map((format) => uploadFormats[format].label).join(" / ")} dengan tipe yang sesuai.`;
+    return `Choose a ${upload.formats.map((format) => uploadFormats[format].label).join(" / ")} file with a matching file type.`;
   }
 }
 
 export function assignmentView(rule: AssignmentRule | undefined, file?: File) {
-  if (!rule) return { upload: undefined, required: false, blocked: true, label: "Belum dipilih", message: "Pilih divisi utama dan sub-divisi untuk melihat ketentuan assignment.", summary: "Sub-divisi belum dipilih" };
+  if (!rule) return { upload: undefined, required: false, blocked: true, label: "Choose a sub-division", message: "Choose a main division and sub-division to see assignment requirements.", summary: "No sub-division selected" };
   switch (rule.status) {
     case "required":
-      return { upload: rule.upload, required: true, blocked: false, label: "Wajib", message: rule.instructions, summary: file ? `Wajib · ${file.name}` : "Belum dilampirkan (wajib)" };
+      return { upload: rule.upload, required: true, blocked: false, label: "Required", message: rule.instructions, summary: file ? `Required · ${file.name}` : "Not attached (required)" };
     case "optional":
-      return { upload: rule.upload, required: false, blocked: false, label: "Opsional", message: rule.instructions, summary: file ? `Opsional · ${file.name}` : "Tidak dilampirkan (opsional)" };
+      return { upload: rule.upload, required: false, blocked: false, label: "Optional", message: rule.instructions, summary: file ? `Optional · ${file.name}` : "Not attached (optional)" };
     case "none":
-      return { upload: undefined, required: false, blocked: false, label: "Tidak diperlukan", message: rule.message, summary: "Assignment tidak diperlukan" };
+      return { upload: undefined, required: false, blocked: false, label: "Not required", message: rule.message, summary: "Assignment tidak diperlukan / No assignment required" };
     case "unconfirmed":
-      return { upload: undefined, required: false, blocked: true, label: "Belum dikonfirmasi", message: rule.message, summary: "Belum dikonfirmasi — pengiriman diblokir" };
+      return { upload: undefined, required: false, blocked: true, label: "Unconfirmed", message: rule.message, summary: "Belum dikonfirmasi — pengiriman diblokir / Unconfirmed — submission blocked" };
   }
 }
 

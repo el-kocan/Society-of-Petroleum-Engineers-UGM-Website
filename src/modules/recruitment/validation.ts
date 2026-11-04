@@ -30,7 +30,7 @@ export const emptyValues: ApplicationValues = {
 
 export function validateFile(key: DocumentKey, file: File | undefined): string | undefined {
   const slot = documentSlots.find((item) => item.key === key);
-  if (!slot) return "Ketentuan assignment harus diperiksa melalui sub-divisi yang dipilih.";
+  if (!slot) return "Check the assignment requirements for your selected sub-division.";
   return validateUpload(file, { formats: [slot.format === "PDF" ? "pdf" : "png"], maxBytes: MAX_FILE_BYTES, filename: slot.filename }, true);
 }
 
@@ -38,29 +38,29 @@ export function validateStep(step: number, values: ApplicationValues, files: App
   const errors: Errors = {};
   if (step === 0) {
     for (const key of ["fullName", "nim", "birthPlace", "major"] as const) {
-      if (!values[key].trim()) errors[key] = "Field ini wajib diisi.";
-      else if (values[key].trim().length > 150) errors[key] = "Maksimum 150 karakter.";
+      if (!values[key].trim()) errors[key] = "This field is required.";
+      else if (values[key].trim().length > 150) errors[key] = "Use no more than 150 characters.";
     }
     const birth = new Date(`${values.birthDate}T00:00:00Z`);
     const today = new Date();
     const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(values.birthDate) || !Number.isFinite(birth.getTime()) || birth.toISOString().slice(0, 10) !== values.birthDate || values.birthDate > localToday) {
-      errors.birthDate = "Masukkan tanggal lahir yang valid, bukan tanggal mendatang.";
+      errors.birthDate = "Enter a valid date of birth that is not in the future.";
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.ugmEmail.trim()) || values.ugmEmail.length > 254) errors.ugmEmail = "Masukkan alamat email yang valid.";
-    if (!/^\+?[\d ()-]{8,25}$/.test(values.phoneNumber.trim()) || values.phoneNumber.replace(/\D/g, "").length < 8) errors.phoneNumber = "Masukkan nomor telepon dengan 8–25 karakter.";
-    if (!period.batches.includes(values.batch)) errors.batch = `Pilih angkatan ${period.batches.join(" atau ")}.`;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.ugmEmail.trim()) || values.ugmEmail.length > 254) errors.ugmEmail = "Enter a valid email address.";
+    if (!/^\+?[\d ()-]{8,25}$/.test(values.phoneNumber.trim()) || values.phoneNumber.replace(/\D/g, "").length < 8) errors.phoneNumber = "Enter a phone number with 8–25 characters.";
+    if (!period.batches.includes(values.batch)) errors.batch = `Choose a cohort: ${period.batches.join(" or ")}.`;
   }
   if (step === 1 || step === 2) {
     const fields = preferenceFields[step];
     const { division, subDivision } = resolvePreference(period, values[fields.division], values[fields.subDivision]);
-    if (!division) errors[fields.division] = "Pilih divisi utama dari daftar yang tersedia.";
-    if (!subDivision) errors[fields.subDivision] = "Pilih sub-divisi yang termasuk dalam divisi utama ini.";
+    if (!division) errors[fields.division] = "Choose a main division from the list.";
+    if (!subDivision) errors[fields.subDivision] = "Choose a sub-division within this main division.";
     if (subDivision && values.division1 === values.division2 && values.subDivision1 === values.subDivision2) {
-      errors[fields.subDivision] = "Pilih dua sub-divisi yang berbeda. Keduanya boleh berada dalam divisi utama yang sama.";
+      errors[fields.subDivision] = "Choose two different sub-divisions. They may belong to the same main division.";
     }
-    if (!values[fields.motivation].trim()) errors[fields.motivation] = "Tuliskan alasan memilih sub-divisi.";
-    else if (values[fields.motivation].length > 3000) errors[fields.motivation] = "Maksimum 3.000 karakter.";
+    if (!values[fields.motivation].trim()) errors[fields.motivation] = "Explain why you chose this sub-division.";
+    else if (values[fields.motivation].length > 3000) errors[fields.motivation] = "Use no more than 3,000 characters.";
     if (step === 1 && subDivision) {
       const error = validateAssignment(subDivision.assignment, files[fields.assignment], forSubmission);
       if (error) {

@@ -665,7 +665,7 @@ test('safety guard: recruitment disabled blocks Google provider selection before
   const getRes = await route.GET(getReq);
   assert.equal(getRes.status, 503);
   const getData = await getRes.json();
-  assert(getData.error.includes('Pendaftaran belum tersedia'));
+  assert(getData.error.includes('Applications are currently unavailable'));
 });
 
 test('official recruitment schedule: defaults match 2026-11-04 to 2026-11-14 across Next.js and public copy', () => {
