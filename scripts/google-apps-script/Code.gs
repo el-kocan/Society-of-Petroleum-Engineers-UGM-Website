@@ -141,11 +141,15 @@ function checkRegistrationWindow() {
   var closesAt = new Date(closesStr).getTime();
 
   if (isNaN(opensAt) || isNaN(closesAt)) {
-    throw new Error("Konfigurasi tanggal pendaftaran tidak valid.");
+    throw new Error("Registration date configuration is invalid.");
   }
 
-  if (now < opensAt || now >= closesAt) {
-    throw new Error("Pendaftaran belum dibuka atau sudah ditutup.");
+  if (now < opensAt) {
+    throw new Error("Applications open November 5, 2026 at 00:00 WIB.");
+  }
+
+  if (now >= closesAt) {
+    throw new Error("Applications are now closed.");
   }
 }
 

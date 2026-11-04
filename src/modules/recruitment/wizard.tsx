@@ -327,8 +327,20 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
     }
 
     const lower = serverError.toLowerCase();
-    const isNotYetOpen = lower.includes("open on") || lower.includes("not yet");
-    const isClosed = lower.includes("closed");
+    const isScheduleBeforeOpen = PUBLIC_RECRUITMENT_SCHEDULE.isBeforeOpen;
+    const isScheduleClosed = PUBLIC_RECRUITMENT_SCHEDULE.isClosed;
+    const isNotYetOpen =
+      lower.includes("open november 5") ||
+      lower.includes("not yet") ||
+      lower.includes("open on") ||
+      lower.includes("belum dibuka") ||
+      (isScheduleBeforeOpen && (lower.includes("closed") || lower.includes("ditutup") || lower.includes("unavailable") || lower.includes("tidak")));
+    const isClosed =
+      !isNotYetOpen &&
+      (lower.includes("are now closed") ||
+        lower.includes("have closed") ||
+        lower.includes("sudah ditutup") ||
+        isScheduleClosed);
 
     return (
       <RecruitmentFrame>
@@ -337,17 +349,18 @@ export function ApplicationWizard({ backend = false }: { backend?: boolean }) {
             {isNotYetOpen ? "Registration Not Yet Open" : isClosed ? "Registration Closed" : "Temporarily Unavailable"}
           </span>
           <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink-deep sm:text-4xl">
-            {isNotYetOpen ? "Registration is not yet open" : isClosed ? "Registration has closed" : "Applications are temporarily unavailable"}
+            {isNotYetOpen
+              ? "Applications Open November 5, 2026"
+              : isClosed
+              ? "Applications Are Now Closed"
+              : "Applications are temporarily unavailable"}
           </h1>
           <p role="status" className="mt-4 text-base leading-relaxed text-ink-soft">
-            {serverError}
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
             {isNotYetOpen
-              ? "The application period has not yet begun. Please return once registration opens. In the meantime, you can review requirements and prepare your documents."
+              ? "Registration opens on Thursday, November 5, 2026 at 00:00 WIB. In the meantime, you can explore the divisions, read the official guidebook, and prepare your supporting documents."
               : isClosed
-              ? "Thank you for your interest in SPE UGM SC. The application period for this recruitment cycle has concluded."
-              : "Please try again later. If the issue persists, please check your internet connection or contact the recruitment committee."}
+              ? "Thank you for your interest in SPE UGM SC. The application period for the 2026/2027 recruitment cycle has concluded."
+              : clientMessage(serverError) || "Please try again later. If the issue persists, please check your internet connection or contact the recruitment committee."}
           </p>
           <div className="mt-8 flex justify-center">
             <Link href="/join" className={secondaryButton}>

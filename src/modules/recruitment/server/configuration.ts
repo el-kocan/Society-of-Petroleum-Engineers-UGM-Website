@@ -7,13 +7,23 @@ export type PeriodRow = { id: string; label: string; config_version: number; app
 export type OptionRow = { main_code: string; sub_code: string; main_label: string; sub_label: string; assignment_state: "required" | "optional" | "none" | "unconfirmed"; instructions: string; formats: UploadFormat[] | null; max_bytes: number | null };
 export type RequirementRow = { slot: DocumentKey; required: boolean; formats: UploadFormat[]; max_bytes: number };
 export type Catalog = { period: PeriodRow; options: OptionRow[]; requirements: RequirementRow[] };
+
 export function assertOpen(catalog: Catalog, now = Date.now()) {
   const p = catalog.period;
-  if (!p.approved_at || !p.is_open || now < Date.parse(p.opens_at) || now >= Date.parse(p.closes_at))
-    throw new SubmissionError(409, "Pendaftaran belum dibuka atau sudah ditutup.");
-  if (catalog.options.length === 0 || catalog.options.some(o => o.assignment_state === "unconfirmed") || catalog.requirements.length !== 7)
-    throw new SubmissionError(503, "Konfigurasi pendaftaran belum disahkan lengkap.");
+  if (!p.approved_at || !p.is_open) {
+    throw new SubmissionError(409, "Applications are currently closed.");
+  }
+  if (now < Date.parse(p.opens_at)) {
+    throw new SubmissionError(409, "Applications open November 5, 2026 at 00:00 WIB.");
+  }
+  if (now >= Date.parse(p.closes_at)) {
+    throw new SubmissionError(409, "Applications are now closed.");
+  }
+  if (catalog.options.length === 0 || catalog.options.some(o => o.assignment_state === "unconfirmed") || catalog.requirements.length !== 7) {
+    throw new SubmissionError(503, "Recruitment configuration is incomplete.");
+  }
 }
+
 export function publicPeriod(catalog: Catalog): RecruitmentPeriod {
   const divisions: RecruitmentPeriod["divisions"][number][] = [];
   for (const o of catalog.options) {
@@ -24,6 +34,6 @@ export function publicPeriod(catalog: Catalog): RecruitmentPeriod {
       : { status: o.assignment_state, message: o.instructions };
     (division.subDivisions as Array<typeof division.subDivisions[number]>).push({ id: o.sub_code, label: o.sub_label, assignment });
   }
-  return { id: catalog.period.id, label: catalog.period.label, contentState: "approved", notice: "Konfigurasi pendaftaran resmi dari panitia.", batches: catalog.period.batches, divisions,
+  return { id: catalog.period.id, label: catalog.period.label, contentState: "approved", notice: "Official committee recruitment configuration.", batches: catalog.period.batches, divisions,
     documents: Object.fromEntries(catalog.requirements.map(r => [r.slot, { required: r.required, formats: r.formats, maxBytes: r.max_bytes, filename: r.slot }])) };
 }
