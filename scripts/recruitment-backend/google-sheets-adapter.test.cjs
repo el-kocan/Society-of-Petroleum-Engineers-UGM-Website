@@ -121,6 +121,8 @@ function createSyntheticForm(overrides = {}) {
   f.set('commitment', new File([pdfHeader], 'synthetic_commit.pdf', { type: 'application/pdf' }));
   f.set('followProof', new File([pngBytes], 'synthetic_follow.png', { type: 'image/png' }));
   f.set('storyProof', new File([pngBytes], 'synthetic_story.png', { type: 'image/png' }));
+  f.set('mbti', new File([pngBytes], 'synthetic_mbti.png', { type: 'image/png' }));
+  f.set('ugmGroupProof', new File([pngBytes], 'synthetic_ugm_group.png', { type: 'image/png' }));
   // media-creative/website-development requires rank 1 assignment PDF
   f.set('assignment1', new File([pdfHeader], 'synthetic_assign.pdf', { type: 'application/pdf' }));
   return f;
@@ -298,7 +300,7 @@ test('loadGoogleCatalog produces valid GUIDEBOOK_v3 catalog that satisfies asser
 
   // Exactly 13 options across 6 divisions
   assert.equal(catalog.options.length, 13);
-  assert.equal(catalog.requirements.length, 5);
+  assert.equal(catalog.requirements.length, 7);
   assert.deepEqual(catalog.period.batches, ['2025', '2026']);
 
   // Relations & Partnership has no assignment
@@ -322,13 +324,13 @@ test('loadGoogleCatalog produces valid GUIDEBOOK_v3 catalog that satisfies asser
   assert.equal(pub.divisions.length, 6);
 });
 
-test('staged upload to Google Apps Script completes with 6 files, verifies hashes and receipt', async () => {
+test('staged upload to Google Apps Script completes with 8 files, verifies hashes and receipt', async () => {
   setMockEnv();
   const catalog = loadGoogleCatalog();
   const form = createSyntheticForm();
   const payload = await validatePayload(form, catalog);
 
-  assert.equal(payload.documents.length, 6); // 5 supporting + 1 assignment
+  assert.equal(payload.documents.length, 8); // 7 supporting + 1 assignment
 
   const { state, mockFetch } = createMockAppsScriptServer();
   const result = await submitToGoogle(catalog, KEY, payload, mockFetch);
@@ -337,18 +339,55 @@ test('staged upload to Google Apps Script completes with 6 files, verifies hashe
   assert.equal(state.sheetRows.length, 1);
   assert.equal(state.sheetRows[0].status, 'SUBMITTED');
 
-  // Check action sequence: init -> 6x upload_file -> finalize
+  // Check action sequence: init -> 8x upload_file -> finalize
   const actions = state.history.map((h) => h.action);
   assert.equal(actions[0], 'init');
-  assert.equal(actions.filter((a) => a === 'upload_file').length, 6);
+  assert.equal(actions.filter((a) => a === 'upload_file').length, 8);
   assert.equal(actions[actions.length - 1], 'finalize');
 
   // Check stored files in applicant folder
   const filesMap = state.folders.get(KEY);
-  assert.equal(filesMap.size, 6);
-  for (const slot of ['cv', 'idCard', 'commitment', 'followProof', 'storyProof', 'assignment1']) {
+  assert.equal(filesMap.size, 8);
+  for (const slot of ['cv', 'idCard', 'commitment', 'followProof', 'storyProof', 'mbti', 'ugmGroupProof', 'assignment1']) {
     assert(filesMap.has(slot));
   }
+});
+
+test('staged upload with Relations & Partnership (no assignment) completes with 7 files', async () => {
+  setMockEnv();
+  const catalog = loadGoogleCatalog();
+  const form = createSyntheticForm({
+    division1: 'external-affairs',
+    subDivision1: 'relations-partnership',
+    motivation1: 'Motivation for relations & partnership',
+    division2: 'media-creative',
+    subDivision2: 'website-development',
+    motivation2: 'Motivation for website development',
+  });
+  // Remove assignment1 since relations-partnership requires none
+  form.delete('assignment1');
+  const payload = await validatePayload(form, catalog);
+
+  assert.equal(payload.documents.length, 7); // Exactly 7 supporting documents, 0 assignment
+
+  const { state, mockFetch } = createMockAppsScriptServer();
+  const result = await submitToGoogle(catalog, KEY, payload, mockFetch);
+
+  assert(result.applicationId.startsWith('SPE-2026-SYNTHETIC-001-'));
+  assert.equal(state.sheetRows.length, 1);
+  assert.equal(state.sheetRows[0].status, 'SUBMITTED');
+
+  const actions = state.history.map((h) => h.action);
+  assert.equal(actions[0], 'init');
+  assert.equal(actions.filter((a) => a === 'upload_file').length, 7);
+  assert.equal(actions[actions.length - 1], 'finalize');
+
+  const filesMap = state.folders.get(KEY);
+  assert.equal(filesMap.size, 7);
+  for (const slot of ['cv', 'idCard', 'commitment', 'followProof', 'storyProof', 'mbti', 'ugmGroupProof']) {
+    assert(filesMap.has(slot));
+  }
+  assert(!filesMap.has('assignment1'));
 });
 
 test('idempotency: resubmission with same key returns existing receipt without duplicates', async () => {
@@ -480,7 +519,7 @@ test('route GET and POST handlers work end-to-end with Google provider', async (
   }
 });
 
-test('staged client-to-Next.js transport handles six maximum-size 3 MiB files under Vercel 4.5 MB limit', async () => {
+test('staged client-to-Next.js transport handles eight maximum-size 3 MiB files under Vercel 4.5 MB limit', async () => {
   setMockEnv();
   const { state, mockFetch } = createMockAppsScriptServer();
 
@@ -541,13 +580,15 @@ test('staged client-to-Next.js transport handles six maximum-size 3 MiB files un
     assert.equal(initData.ok, true);
     assert.equal(initData.status, 'ready');
 
-    // Stage 2: Upload 6 files individually (each strictly <= 3.01 MB, well below 4.5 MB Vercel limit)
+    // Stage 2: Upload 8 files individually (each strictly <= 3.01 MB, well below 4.5 MB Vercel limit)
     const slots = [
       { slot: 'cv', file: new File([largePdf], 'cv.pdf', { type: 'application/pdf' }) },
       { slot: 'idCard', file: new File([largePdf], 'id.pdf', { type: 'application/pdf' }) },
       { slot: 'commitment', file: new File([largePdf], 'commit.pdf', { type: 'application/pdf' }) },
       { slot: 'followProof', file: new File([pngBytes], 'follow.png', { type: 'image/png' }) },
       { slot: 'storyProof', file: new File([pngBytes], 'story.png', { type: 'image/png' }) },
+      { slot: 'mbti', file: new File([pngBytes], 'mbti.png', { type: 'image/png' }) },
+      { slot: 'ugmGroupProof', file: new File([pngBytes], 'ugmGroupProof.png', { type: 'image/png' }) },
       { slot: 'assignment1', file: new File([largePdf], 'assign.pdf', { type: 'application/pdf' }) },
     ];
 
@@ -577,11 +618,11 @@ test('staged client-to-Next.js transport handles six maximum-size 3 MiB files un
       uploadedDocs.push(uploadData);
     }
 
-    assert.equal(uploadedDocs.length, 6);
+    assert.equal(uploadedDocs.length, 8);
 
     // Verify upload_file received proper nim and fullName and generated proper filenames
     const uploadActions = state.history.filter((h) => h.action === 'upload_file');
-    assert.equal(uploadActions.length, 6);
+    assert.equal(uploadActions.length, 8);
     for (const action of uploadActions) {
       assert.equal(action.nim, 'synthetic-max-001');
       assert.equal(action.fullName, 'Max Payload Applicant');
@@ -668,15 +709,134 @@ test('safety guard: recruitment disabled blocks Google provider selection before
   assert(getData.error.includes('Applications are currently unavailable'));
 });
 
-test('official recruitment schedule: defaults match 2026-11-04 to 2026-11-14 across Next.js and public copy', () => {
+test('official recruitment schedule: defaults match 2026-11-05 to 2026-11-14 across Next.js and dynamic schedule', () => {
   setMockEnv({ RECRUITMENT_OPENS_AT: undefined, RECRUITMENT_CLOSES_AT: undefined });
   const catalog = loadGoogleCatalog();
-  assert.equal(catalog.period.opens_at, '2026-11-04T00:00:00+07:00');
+  assert.equal(catalog.period.opens_at, '2026-11-05T00:00:00+07:00');
   assert.equal(catalog.period.closes_at, '2026-11-14T00:00:00+07:00');
 
-  const { PUBLIC_RECRUITMENT_SCHEDULE } = require('../../src/modules/recruitment/public-information.ts');
-  assert.equal(PUBLIC_RECRUITMENT_SCHEDULE.applicationDates, 'Nov 4 – 13, 2026');
-  assert.equal(PUBLIC_RECRUITMENT_SCHEDULE.deadline, 'November 13, 2026, 23:59 WIB');
+  const { getPublicRecruitmentSchedule, PUBLIC_RECRUITMENT_SCHEDULE } = require('../../src/modules/recruitment/public-information.ts');
+
+  // 1. Before Nov 13 (Standard open window)
+  const standardSchedule = getPublicRecruitmentSchedule(Date.parse('2026-11-06T12:00:00+07:00'));
+  assert.equal(standardSchedule.applicationDates, 'November 5 – 12, 2026');
+  assert.equal(standardSchedule.deadline, 'November 12, 2026, 23:59 WIB');
+  assert.equal(standardSchedule.isExtended, false);
+  assert.equal(standardSchedule.isClosed, false);
+  assert.equal(standardSchedule.badge, null);
+
+  // 2. During Nov 13 (Extended registration day)
+  const extendedSchedule = getPublicRecruitmentSchedule(Date.parse('2026-11-13T12:00:00+07:00'));
+  assert.equal(extendedSchedule.applicationDates, 'November 5 – 13, 2026 (Extended)');
+  assert.equal(extendedSchedule.deadline, 'November 13, 2026, 23:59 WIB');
+  assert.equal(extendedSchedule.isExtended, true);
+  assert.equal(extendedSchedule.isClosed, false);
+  assert.equal(extendedSchedule.badge, 'Registration Extended');
+
+  // 3. At or after Nov 14 (Exclusive cutoff - registration closed)
+  const closedSchedule = getPublicRecruitmentSchedule(Date.parse('2026-11-14T00:00:00+07:00'));
+  assert.equal(closedSchedule.isClosed, true);
+  assert.equal(closedSchedule.badge, 'Applications Closed');
+});
+
+test('Google Sheets headers and row structure: preserves columns A-Z and appends AA and AB', () => {
+  const fs = require('node:fs');
+  const codeGs = fs.readFileSync(path.join(__dirname, '../google-apps-script/Code.gs'), 'utf8');
+
+  // Verify HEADERS array
+  const headerMatch = codeGs.match(/var HEADERS = \[([\s\S]*?)\];/);
+  assert(headerMatch, 'HEADERS array must exist in Code.gs');
+  const headers = headerMatch[1]
+    .split(',')
+    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+    .filter(Boolean);
+
+  assert.equal(headers.length, 28, 'Total columns must be 28 (A-AB)');
+  assert.equal(headers[24], 'Applicant Drive Folder URL'); // Col Y
+  assert.equal(headers[25], 'Status');                   // Col Z (index 25)
+  assert.equal(headers[26], 'MBTI Result URL');           // Col AA (index 26)
+  assert.equal(headers[27], 'UGM Group Sharing Proof URL'); // Col AB (index 27)
+
+  // Verify newRow indices in Code.gs
+  assert(codeGs.includes('"SUBMITTED",                                     // Z: Status'));
+  assert(codeGs.includes('docMap["mbti"] || "",                            // AA: MBTI Result URL'));
+  assert(codeGs.includes('docMap["ugmGroupProof"] || ""                    // AB: UGM Group Sharing Proof URL'));
+
+  // Verify sheet column auto-expansion logic in Code.gs
+  assert(codeGs.includes('sheet.insertColumnsAfter(maxCols, HEADERS.length - maxCols)'), 'Code.gs must expand physical columns when < 28');
+});
+
+test('existing Google Sheet with 26 columns safely expands to 28 columns for AA and AB', () => {
+  let maxCols = 26;
+  const sheetData = [
+    // Existing row 1 (headers A-Z)
+    Array.from({ length: 26 }, (_, i) => `Col_${i + 1}`),
+    // Existing row 2 (synthetic submission A-Z)
+    Array.from({ length: 26 }, (_, i) => i === 25 ? 'SUBMITTED' : `Data_${i + 1}`),
+  ];
+
+  const mockSheet = {
+    getMaxColumns: () => maxCols,
+    getLastRow: () => sheetData.length,
+    getLastColumn: () => sheetData[0].length,
+    insertColumnsAfter: (afterPos, count) => {
+      maxCols += count;
+    },
+    getRange: (row, col) => ({
+      setValue: (val) => {
+        if (!sheetData[row - 1]) sheetData[row - 1] = [];
+        sheetData[row - 1][col - 1] = val;
+      },
+      setFontWeight: () => {},
+    }),
+  };
+
+  const HEADERS = Array.from({ length: 28 }, (_, i) => {
+    if (i === 25) return 'Status';
+    if (i === 26) return 'MBTI Result URL';
+    if (i === 27) return 'UGM Group Sharing Proof URL';
+    return `Col_${i + 1}`;
+  });
+
+  // Emulate getApplicationsSheet logic from Code.gs
+  var currentMax = mockSheet.getMaxColumns();
+  if (currentMax < HEADERS.length) {
+    mockSheet.insertColumnsAfter(currentMax, HEADERS.length - currentMax);
+  }
+  var lastCol = mockSheet.getLastColumn();
+  if (lastCol < HEADERS.length) {
+    for (var col = lastCol + 1; col <= HEADERS.length; col++) {
+      mockSheet.getRange(1, col).setValue(HEADERS[col - 1]);
+    }
+  }
+
+  // 1. Sheet was expanded from 26 to 28
+  assert.equal(mockSheet.getMaxColumns(), 28);
+  // 2. Existing row 2 data in columns A-Z was untouched
+  assert.equal(sheetData[1][25], 'SUBMITTED');
+  assert.equal(sheetData[1][0], 'Data_1');
+  // 3. Headers AA (Col 27) and AB (Col 28) were added to row 1
+  assert.equal(sheetData[0][26], 'MBTI Result URL');
+  assert.equal(sheetData[0][27], 'UGM Group Sharing Proof URL');
+});
+
+test('document validation and filename resolution: supports mbti and ugmGroupProof PNGs', () => {
+  const { validateFile } = require('../../src/modules/recruitment/validation.ts');
+  const { resolveFilename } = require('../../src/modules/recruitment/server/google-sheets-adapter.ts');
+
+  // Filename resolution
+  assert.equal(resolveFilename('23/123456/TK/11111', 'mbti', 'png'), '[23/123456/TK/11111]_MBTI.png');
+  assert.equal(resolveFilename('23/123456/TK/11111', 'ugmGroupProof', 'png'), '[23/123456/TK/11111]_UGMGroupProof.png');
+
+  // File validation: PNG required
+  const validPng = new File([pngBytes], 'sample.png', { type: 'image/png' });
+  assert.equal(validateFile('mbti', validPng), undefined);
+  assert.equal(validateFile('ugmGroupProof', validPng), undefined);
+
+  // Reject PDF or wrong mime for PNG slots
+  const wrongFormat = new File([pdfHeader], 'sample.pdf', { type: 'application/pdf' });
+  assert(validateFile('mbti', wrongFormat));
+  assert(validateFile('ugmGroupProof', wrongFormat));
 });
 
 test('identity binding: staged upload resolves to established applicant folder and prevents hijacking', () => {

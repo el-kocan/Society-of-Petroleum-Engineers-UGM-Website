@@ -33,7 +33,7 @@ export type RecruitmentPeriod = {
   contentState: "draft" | "demo" | "approved";
   notice: string;
   batches: readonly string[];
-  documents?: Partial<Record<"cv" | "idCard" | "commitment" | "followProof" | "storyProof", UploadSpecification & { required: boolean }>>;
+  documents?: Partial<Record<"cv" | "idCard" | "commitment" | "followProof" | "storyProof" | "mbti" | "ugmGroupProof", UploadSpecification & { required: boolean }>>;
   divisions: readonly MainDivision[];
 };
 

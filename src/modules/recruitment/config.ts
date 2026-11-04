@@ -37,6 +37,8 @@ export const documentSlots = [
   { key: "commitment", label: "Commitment Letter", format: "PDF", filename: "Name_LetterCommitment.pdf", step: 3 },
   { key: "followProof", label: "Instagram Follow Proof", format: "PNG", filename: "Name_ProofFollowSPE.png", step: 3 },
   { key: "storyProof", label: "Instagram Story Proof", format: "PNG", filename: "Name_ProofSG.png", step: 3 },
+  { key: "mbti", label: "MBTI Personality Test Result", format: "PNG", filename: "Name_MBTI.png", step: 3 },
+  { key: "ugmGroupProof", label: "UGM Group Sharing Proof", format: "PNG", filename: "Name_UGMGroupProof.png", step: 3 },
 ] as const;
 
 export const steps = ["Personal information", "First preference", "Second preference", "Supporting documents & review"] as const;

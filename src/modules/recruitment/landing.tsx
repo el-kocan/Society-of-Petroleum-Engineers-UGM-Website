@@ -9,32 +9,34 @@ interface TimelineStage {
   title: string;
 }
 
-const RECRUITMENT_TIMELINE: readonly TimelineStage[] = [
-  {
-    date: PUBLIC_RECRUITMENT_SCHEDULE.applicationDates,
-    title: "Staff Application Period",
-  },
-  {
-    date: "November 14, 2026",
-    title: "Document Screening Announcement",
-  },
-  {
-    date: "November 15, 2026",
-    title: "Focus Group Discussion",
-  },
-  {
-    date: "November 16, 2026",
-    title: "FGD Qualifiers Announcement",
-  },
-  {
-    date: "Nov 18 – 20, 2026",
-    title: "Offline Interviews",
-  },
-  {
-    date: "November 22, 2026",
-    title: "Final Staff Announcement",
-  },
-] as const;
+function getRecruitmentTimeline(): readonly TimelineStage[] {
+  return [
+    {
+      date: PUBLIC_RECRUITMENT_SCHEDULE.applicationDates,
+      title: "Staff Application Period",
+    },
+    {
+      date: "November 14, 2026",
+      title: "Document Screening Announcement",
+    },
+    {
+      date: "November 15, 2026",
+      title: "Focus Group Discussion",
+    },
+    {
+      date: "November 16, 2026",
+      title: "FGD Qualifiers Announcement",
+    },
+    {
+      date: "Nov 18 – 20, 2026",
+      title: "Offline Interviews",
+    },
+    {
+      date: "November 22, 2026",
+      title: "Final Staff Announcement",
+    },
+  ];
+}
 
 interface DivisionMandate {
   id: string;
@@ -81,21 +83,32 @@ const SUPPORTING_DOCUMENTS = [
   { name: "Commitment Letter", format: "PDF", filename: "Name_LetterCommitment.pdf" },
   { name: "Instagram Follow Proof", format: "PNG", filename: "Name_ProofFollowSPE.png" },
   { name: "Instagram Story Proof", format: "PNG", filename: "Name_ProofSG.png" },
+  { name: "MBTI Personality Test Result", format: "PNG", filename: "Name_MBTI.png" },
+  { name: "UGM Group Sharing Proof", format: "PNG", filename: "Name_UGMGroupProof.png" },
 ] as const;
 
 const sectionStyle = "scroll-mt-28 border-t border-[#dddde8] py-5 sm:py-10";
 const headingStyle = "font-display text-2xl font-semibold tracking-tight text-ink-deep sm:text-3xl";
 
 export function RecruitmentLanding({ backend = false }: { backend?: boolean } = {}) {
+  const timeline = getRecruitmentTimeline();
+
   return (
     <RecruitmentFrame>
       {!backend && <MockNotice />}
 
       <section aria-labelledby="recruitment-title" className="grid gap-6 pt-2 pb-7 sm:pt-4 sm:pb-10 lg:grid-cols-[1.25fr_1fr] lg:items-center lg:gap-12">
         <div className="min-w-0">
-          <p className="text-[15px] font-semibold text-[#5947b5]">
-            SPE UGM SC Staff Recruitment 2026/2027
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[15px] font-semibold text-[#5947b5]">
+              SPE UGM SC Staff Recruitment 2026/2027
+            </p>
+            {PUBLIC_RECRUITMENT_SCHEDULE.badge && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                {PUBLIC_RECRUITMENT_SCHEDULE.badge}
+              </span>
+            )}
+          </div>
           <h1
             id="recruitment-title"
             className="mt-4 font-display text-[2.5rem] leading-[1.12] font-semibold tracking-tight text-ink-deep sm:text-6xl lg:text-[3.25rem] xl:text-[3.5rem]"
@@ -113,31 +126,15 @@ export function RecruitmentLanding({ backend = false }: { backend?: boolean } = 
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <ApplicationEntry backend={backend} />
-            {OFFICIAL_GUIDEBOOK_URL ? (
-              <a
-                href={OFFICIAL_GUIDEBOOK_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={secondaryButton}
-              >
-                Read Guidebook
-              </a>
-            ) : (
-              <button
-                type="button"
-                disabled
-                aria-describedby="guidebook-status"
-                className={`${secondaryButton} disabled:cursor-not-allowed disabled:text-ink-soft`}
-              >
-                Read Guidebook
-              </button>
-            )}
+            <a
+              href={OFFICIAL_GUIDEBOOK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={secondaryButton}
+            >
+              View Recruitment Guidebook
+            </a>
           </div>
-          {!OFFICIAL_GUIDEBOOK_URL && (
-            <p id="guidebook-status" className="mt-3 text-[15px] text-ink-soft">
-              Official guidebook publication pending.
-            </p>
-          )}
         </div>
         <figure className="min-w-0">
           <div className="relative h-36 overflow-hidden rounded-[22px] bg-[#e8e7ee] sm:h-56 lg:h-auto lg:aspect-[4/3]">
@@ -158,10 +155,17 @@ export function RecruitmentLanding({ backend = false }: { backend?: boolean } = 
       </section>
 
       <section id="timeline" aria-labelledby="timeline-title" className={sectionStyle}>
-        <h2 id="timeline-title" className={headingStyle}>Recruitment Timeline</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 id="timeline-title" className={headingStyle}>Recruitment Timeline</h2>
+          {PUBLIC_RECRUITMENT_SCHEDULE.badge && (
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+              {PUBLIC_RECRUITMENT_SCHEDULE.badge}
+            </span>
+          )}
+        </div>
         <p className="mt-3 text-[15px] text-ink-soft">Application deadline: {PUBLIC_RECRUITMENT_SCHEDULE.deadline}.</p>
         <ol className="mt-5 grid gap-x-12 sm:grid-flow-col sm:grid-cols-2 sm:grid-rows-3">
-          {RECRUITMENT_TIMELINE.map((stage, index) => (
+          {timeline.map((stage, index) => (
             <li key={stage.title} className="relative grid grid-cols-[2rem_1fr] gap-3 py-2.5 before:absolute before:top-10 before:bottom-0 before:left-3 before:border-l before:border-[#d4cdeb] last:before:hidden sm:py-3.5 sm:before:top-11 sm:[&:nth-child(3)]:before:hidden">
               <span aria-hidden="true" className="pt-0.5 font-mono text-sm font-medium text-[#5947b5]">
                 {String(index + 1).padStart(2, "0")}
@@ -202,13 +206,13 @@ export function RecruitmentLanding({ backend = false }: { backend?: boolean } = 
           <div>
             <h2 id="documents-title" className={headingStyle}>Before You Apply</h2>
             <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
-              Prepare these five supporting documents, max 3 MiB each. Filenames are guidance only.
+              Prepare these seven supporting documents, max 3 MiB each. Filenames are guidance only.
             </p>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
               Your first preference requires an assignment PDF (max 3 MiB), except Relations &amp; Partnership. No assignment is accepted for your second preference. Suggested filename (advisory): Name_FirstDivision.pdf. Include any applicable video, portfolio or external submission links inside the PDF.
             </p>
             <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-              {OFFICIAL_GUIDEBOOK_URL ? "Read the official guidebook for the assignment briefs." : "Assignment briefs will be available in the official guidebook. Publication is pending."}
+              Read the official guidebook for the assignment briefs.
             </p>
           </div>
           <ul className="grid min-w-0 gap-2.5 sm:grid-cols-2 sm:gap-3">

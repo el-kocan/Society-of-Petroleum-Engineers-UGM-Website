@@ -16,6 +16,8 @@ const documentLabels: Record<string, string> = {
   commitment: "Commitment Letter",
   followProof: "Instagram Follow Proof",
   storyProof: "Instagram Story Proof",
+  mbti: "MBTI Personality Test Result",
+  ugmGroupProof: "UGM Group Sharing Proof",
 };
 
 export function documentLabel(key: string) {

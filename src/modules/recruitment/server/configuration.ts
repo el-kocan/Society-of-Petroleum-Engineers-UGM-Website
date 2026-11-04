@@ -11,7 +11,7 @@ export function assertOpen(catalog: Catalog, now = Date.now()) {
   const p = catalog.period;
   if (!p.approved_at || !p.is_open || now < Date.parse(p.opens_at) || now >= Date.parse(p.closes_at))
     throw new SubmissionError(409, "Pendaftaran belum dibuka atau sudah ditutup.");
-  if (catalog.options.length === 0 || catalog.options.some(o => o.assignment_state === "unconfirmed") || catalog.requirements.length !== 5)
+  if (catalog.options.length === 0 || catalog.options.some(o => o.assignment_state === "unconfirmed") || catalog.requirements.length !== 7)
     throw new SubmissionError(503, "Konfigurasi pendaftaran belum disahkan lengkap.");
 }
 export function publicPeriod(catalog: Catalog): RecruitmentPeriod {

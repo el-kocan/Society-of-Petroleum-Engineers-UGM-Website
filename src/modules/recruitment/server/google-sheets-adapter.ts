@@ -97,7 +97,7 @@ export function googleSettings(): GoogleBackendSettings {
 }
 
 export function loadGoogleCatalog(): Catalog {
-  const opensAt = process.env.RECRUITMENT_OPENS_AT || "2026-11-04T00:00:00+07:00";
+  const opensAt = process.env.RECRUITMENT_OPENS_AT || "2026-11-05T00:00:00+07:00";
   const closesAt = process.env.RECRUITMENT_CLOSES_AT || "2026-11-14T00:00:00+07:00";
 
   const period: PeriodRow = {
@@ -164,6 +164,10 @@ export function resolveFilename(nim: string, slot: string, format: string): stri
       return `[${safeNim}]_ProofFollowSPE.${format}`;
     case "storyProof":
       return `[${safeNim}]_ProofSG.${format}`;
+    case "mbti":
+      return `[${safeNim}]_MBTI.${format}`;
+    case "ugmGroupProof":
+      return `[${safeNim}]_UGMGroupProof.${format}`;
     case "assignment1":
       return `[${safeNim}]_Assignment_FirstDivision.${format}`;
     default:

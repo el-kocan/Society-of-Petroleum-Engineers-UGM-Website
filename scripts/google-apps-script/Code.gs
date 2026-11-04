@@ -41,7 +41,9 @@ var HEADERS = [
   "Instagram Story Proof URL",
   "First Preference Assignment URL",
   "Applicant Drive Folder URL",
-  "Status"
+  "Status",
+  "MBTI Result URL",
+  "UGM Group Sharing Proof URL"
 ];
 
 function getProperties() {
@@ -76,11 +78,23 @@ function getApplicationsSheet() {
     sheet = ss.getSheets()[0];
     sheet.setName("Applications");
   }
-  // Initialize headers if empty
+  // Ensure the physical sheet has enough columns (e.g. expanding 26 cols to 28)
+  var maxCols = sheet.getMaxColumns();
+  if (maxCols < HEADERS.length) {
+    sheet.insertColumnsAfter(maxCols, HEADERS.length - maxCols);
+  }
+  // Initialize headers if empty, or ensure new columns are labeled
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
     sheet.setFrozenRows(1);
+  } else {
+    var lastCol = sheet.getLastColumn();
+    if (lastCol < HEADERS.length) {
+      for (var col = lastCol + 1; col <= HEADERS.length; col++) {
+        sheet.getRange(1, col).setValue(HEADERS[col - 1]).setFontWeight("bold");
+      }
+    }
   }
   return sheet;
 }
@@ -120,7 +134,7 @@ function verifyAuth(payload, e) {
 
 function checkRegistrationWindow() {
   var props = getProperties();
-  var opensStr = props.getProperty("OPENS_AT") || "2026-11-04T00:00:00+07:00";
+  var opensStr = props.getProperty("OPENS_AT") || "2026-11-05T00:00:00+07:00";
   var closesStr = props.getProperty("CLOSES_AT") || "2026-11-14T00:00:00+07:00";
   var now = new Date().getTime();
   var opensAt = new Date(opensStr).getTime();
@@ -368,6 +382,8 @@ function doPost(e) {
         else if (fn.includes("follow") && !docMap["followProof"]) docMap["followProof"] = f.getUrl();
         else if ((fn.includes("story") || fn.includes("sg")) && !docMap["storyProof"]) docMap["storyProof"] = f.getUrl();
         else if (fn.includes("assignment") && !docMap["assignment1"]) docMap["assignment1"] = f.getUrl();
+        else if (fn.includes("mbti") && !docMap["mbti"]) docMap["mbti"] = f.getUrl();
+        else if ((fn.includes("group") || fn.includes("ugm")) && !docMap["ugmGroupProof"]) docMap["ugmGroupProof"] = f.getUrl();
       }
 
       var timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss 'WIB'");
@@ -398,7 +414,9 @@ function doPost(e) {
         docMap["storyProof"] || "",                      // W: Story Proof
         docMap["assignment1"] || "Tidak Diperlukan",     // X: Assignment 1
         folder.getUrl(),                                 // Y: Folder URL
-        "SUBMITTED"                                      // Z: Status
+        "SUBMITTED",                                     // Z: Status
+        docMap["mbti"] || "",                            // AA: MBTI Result URL
+        docMap["ugmGroupProof"] || ""                    // AB: UGM Group Sharing Proof URL
       ];
 
       sheet.appendRow(newRow);

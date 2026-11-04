@@ -48,7 +48,7 @@ assert(validateStep(0, { ...values, fullName: " ".repeat(5) }, files).fullName);
 assert(validateStep(0, { ...values, major: "x".repeat(151) }, files).major);
 assert(validateStep(1, { ...values, division1: "unconfigured" }, files, demo).division1);
 assert(validateStep(2, { ...values, motivation2: "x".repeat(3001) }, files, demo).motivation2);
-assert.equal(Object.keys(validateStep(3, values, {})).length, 5);
+assert.equal(Object.keys(validateStep(3, values, {})).length, 7);
 assert(validateFile("cv", new File([], "empty.pdf", { type: "application/pdf" })));
 assert(validateFile("cv", new File(["x"], "fake.pdf", { type: "text/plain" })));
 assert(validateFile("cv", new File(["x"], "fake.png", { type: "application/pdf" })));
@@ -144,8 +144,8 @@ const { FileField } = require(path.join(root, "form-fields.tsx"));
 const { PreferenceStep } = require(path.join(root, "preference-step.tsx"));
 const { documentLabel, documentUploadHint } = require(path.join(root, "presentation.ts"));
 const publicInformation = require(path.join(root, "public-information.ts"));
-assert.equal(publicInformation.OFFICIAL_GUIDEBOOK_URL, null);
-assert.equal(publicInformation.PUBLIC_RECRUITMENT_SCHEDULE.deadline, "November 13, 2026, 23:59 WIB");
+assert.equal(publicInformation.OFFICIAL_GUIDEBOOK_URL, "https://drive.google.com/file/d/1NtZkOohHNQdSOFk4tiRA7Y7Ol6QTDkVo/view?usp=sharing");
+assert.equal(publicInformation.PUBLIC_RECRUITMENT_SCHEDULE.deadline, "November 12, 2026, 23:59 WIB");
 for (const slot of documentSlots) {
   const rule = { formats: [slot.format.toLowerCase()], maxBytes: MAX_FILE_BYTES, filename: slot.key };
   const upload = documentUploadHint(rule, slot.filename);
@@ -164,11 +164,12 @@ const landingMarkup = renderToStaticMarkup(RecruitmentLanding());
 const wizardMarkup = renderToStaticMarkup(React.createElement(ApplicationWizard));
 for (const markup of [landingMarkup, wizardMarkup]) {
   assert(markup.includes(publicInformation.PUBLIC_RECRUITMENT_SCHEDULE.deadline));
-  assert(markup.includes("Official guidebook publication pending."));
+  assert(markup.includes(publicInformation.OFFICIAL_GUIDEBOOK_URL));
+  assert(!markup.includes("Official guidebook publication pending."));
   assert(!markup.includes("November 14, 2026, 00:00"));
   assert(!markup.includes('href="null"'));
 }
-assert(landingMarkup.includes('aria-describedby="guidebook-status"'));
+assert(landingMarkup.includes("View Recruitment Guidebook"));
 const props = { preview: true, period: draft, values: draftValues, files, errors: {}, onDivision() {}, onSubDivision() {}, onMotivation() {}, onFile() {} };
 const firstMarkup = renderToStaticMarkup(React.createElement(PreferenceStep, { ...props, rank: 1 }));
 assert(firstMarkup.includes("max 3 MiB"));

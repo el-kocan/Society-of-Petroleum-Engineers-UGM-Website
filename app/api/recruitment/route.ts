@@ -139,9 +139,9 @@ export async function POST(request: Request) {
       requireOrigin(request, gs.origin);
 
       const clientIp = resolveClientIp(request);
-      const submitIpLimit = getLimitThreshold("RECRUITMENT_LIMIT_SUBMIT_IP", 15);
+      const submitIpLimit = getLimitThreshold("RECRUITMENT_LIMIT_SUBMIT_IP", 30);
       const submitGlobalLimit = getLimitThreshold("RECRUITMENT_LIMIT_SUBMIT_GLOBAL", 120);
-      const submitSessionLimit = getLimitThreshold("RECRUITMENT_LIMIT_SUBMIT_SESSION", 10);
+      const submitSessionLimit = getLimitThreshold("RECRUITMENT_LIMIT_SUBMIT_SESSION", 20);
       await limit(`submit:ip:${clientIp}`, submitIpLimit, 60000);
       await limit("global-submission", submitGlobalLimit, 60000);
 

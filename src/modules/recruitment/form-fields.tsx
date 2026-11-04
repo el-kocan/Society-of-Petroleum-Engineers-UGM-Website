@@ -25,17 +25,28 @@ export function Field({ id, label, error, hint, required = true, children }: {
   );
 }
 
-export function FileField({ slot, upload, file, error, required = true, onChange }: {
+export function FileField({ slot, upload, file, error, required = true, actionLink, guidance, onChange }: {
   slot: { key: DocumentKey; label: string };
   upload: UploadSpecification;
   file?: File;
   error?: string;
   required?: boolean;
+  actionLink?: ReactNode;
+  guidance?: string;
   onChange: (file?: File) => void;
 }) {
   const id = `recruit-${slot.key}`;
   return (
-    <Field id={id} label={slot.label} required={required} error={error} hint={`${upload.formats.map((format) => format.toUpperCase()).join(" / ")} · Max ${upload.maxBytes / (1024 * 1024)} MiB. Suggested filename (advisory): ${upload.filename}.`}>
+    <div className="min-w-0">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <label htmlFor={id} className="text-[15px] font-semibold text-ink-deep">
+          {slot.label}{required ? <span aria-hidden="true" className="text-iris"> *</span> : " (optional)"}
+        </label>
+        {actionLink}
+      </div>
+      {guidance && (
+        <p className="mb-2 text-sm leading-relaxed text-ink-soft">{guidance}</p>
+      )}
       <div className={`rounded-2xl border bg-[#faf9fe] p-4 ${error ? "border-red-500" : "border-[#dcddea]"}`}>
         <input
           id={id}
@@ -61,6 +72,10 @@ export function FileField({ slot, upload, file, error, required = true, onChange
           </div>
         )}
       </div>
-    </Field>
+      <p id={`${id}-hint`} className="mt-2 text-sm leading-relaxed text-ink-soft">
+        {upload.formats.map((format) => format.toUpperCase()).join(" / ")} · Max {upload.maxBytes / (1024 * 1024)} MiB. Suggested filename (advisory): {upload.filename}.
+      </p>
+      {error && <p id={`${id}-error`} className="mt-2 text-sm text-red-700">{error}</p>}
+    </div>
   );
 }
